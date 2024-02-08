@@ -1,0 +1,29 @@
+{
+  "canisters": {
+    "solutio_admin_backend": {
+      "main": "src/solutio_admin_backend/main.mo",
+      "type": "motoko"
+    },
+    "solutio_admin_frontend": {
+      "dependencies": [
+        "solutio_admin_backend"
+      ],
+      "frontend": {
+        "entrypoint": "src/solutio_admin_frontend/src/index.html"
+      },
+      "source": [
+        "src/solutio_admin_frontend/assets",
+        "dist/solutio_admin_frontend/"
+      ],
+      "type": "assets"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}
