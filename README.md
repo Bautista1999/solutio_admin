@@ -65,7 +65,7 @@ Contains Motoko source code for the backend logic of Solutio. This contains:
 
 ## Solutio's ecosystem interaction overview
 
-<img src="Canisters interaction.jpg" alt="Alt Text" width="500">
+<img src="Canisters interaction .jpg" alt="Alt Text" width="500">
 
 ## Solutio's software architecture overview
 
@@ -89,20 +89,17 @@ Contains Motoko source code for the backend logic of Solutio. This contains:
 2. Install dependencies:
 
 ```bash
-Copy code
 npm install
 ```
 
 3. Start the DFX local network:
 
 ```bash
-Copy code
 dfx start --clean
 ```
 4. Deploy the canisters to the local network:
 
 ```bash
-Copy code
 dfx deploy
 ```
 
