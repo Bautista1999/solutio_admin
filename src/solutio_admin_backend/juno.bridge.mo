@@ -224,7 +224,7 @@ module {
                         };
                     };
                     case (#err(text)) {
-                        return "Error";
+                        return text;
                     };
                 };
 
