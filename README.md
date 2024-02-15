@@ -5,6 +5,10 @@
 
 [Solutio](https://xh6qb-uyaaa-aaaal-acuaq-cai.icp0.io/) is a decentralized application built on the [Internet Computer](https://internetcomputer.org/), enabling users to share innovative ideas, collaborate on developments, and pledge funding. It bridges the gap between idea generation and implementation, leveraging the power of the blockchain to bring solutions to life.
 
+## Key functionalities of the backend
+
+
+
 ## Key components / structure
 This part of the project is structured completely into the backend-end components of the whole platform (excluding our juno satellite), with Motoko being the primary language used. The front-end section of the project is detailed [here](https://github.com/Bautista1999/solut/blob/main/README.md), and is hosted by [Juno](juno.build).
 
@@ -56,5 +60,54 @@ Contains Motoko source code for the backend logic of Solutio. This contains:
     
     9. [deleteManyJunoDocs](https://forum.solutio.one/-159/deletemanyjunodocs-documentation)(): function to delete docs in Juno.
   
-  - `main.mo`: The main entry point of your backend application. Here the public functions are located.
+  - `main.mo`: The main entry point of the backend canister. Here the public functions are located.
   - `types.mo`: Defines Motoko types used across the backend. It helps in maintaining a clean codebase by abstracting type definitions into a separate module.
+
+## Solutio's ecosystem software overview
+
+## Solutio's software architecture overview
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js and npm
+- DFX
+
+### Setup
+
+1. Clone the repository and navigate into the project directory:
+
+   ```bash
+   git clone [repository_url]
+   cd [project_name]
+   ```
+2. Install dependencies:
+
+```bash
+Copy code
+npm install
+```
+
+3. Start the DFX local network:
+
+```bash
+Copy code
+dfx start --clean
+```
+4. Deploy the canisters to the local network:
+
+```bash
+Copy code
+dfx deploy
+```
+
+## Contributing
+Contributions are welcome! Please, include feature requests with your improvements [here](https://forum.solutio.one/top/feedback). 
+
+## Links
+- Developer: [Bautista Martinez](https://github.com/Bautista1999/solut/commits?author=Bautista1999)
+- Project front-end: https://github.com/your_username/solutio
+- Solutio's webpage: https://xh6qb-uyaaa-aaaal-acuaq-cai.icp0.io/
+- Solutio's homepage: https://home.solutio.one/
+- Juno: juno.build
