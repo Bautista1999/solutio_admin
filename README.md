@@ -7,7 +7,13 @@
 
 ## Key functionalities of the backend
 
+In addressing the complexities of Solutio's platform development, we've acknowledged the need for dedicated canister solutions that are specifically tailored to tackle various operational challenges. These canister solutions—namely the Admin Canister and the Escrow Canister—are architectural components designed to enhance the functionality, security, and efficiency of the Solutio infrastructure.
 
+1. **Admin Canister**: Serves as a centralized controller for critical administrative tasks, ensuring sensitive data management, user reputation calculations, pledges management, and secure notifications.
+
+2. **Escrow Canister**: Focuses on managing escrow processes, facilitating secure transactions, and providing detailed records of user fund allocations.
+
+The front-end establish a framework utilizing [ICRC-2](https://github.com/dfinity/ICRC-1/tree/aa82e52aaa74cc7c5f6a141e30b708bf42ede1e3/standards/ICRC-2) capabilities for users to approve users transactions to the Escrow Canister. And this canister also uses ICRC-2 capabilities to transfer tokens.
 
 ## Key components / structure
 This part of the project is structured completely into the backend-end components of the whole platform (excluding our juno satellite), with Motoko being the primary language used. The front-end section of the project is detailed [here](https://github.com/Bautista1999/solut/blob/main/README.md), and is hosted by [Juno](juno.build).
@@ -82,10 +88,10 @@ Contains Motoko source code for the backend logic of Solutio. This contains:
 
 1. Clone the repository and navigate into the project directory:
 
-   ```bash
-   git clone [repository_url]
-   cd [project_name]
-   ```
+```bash
+git clone [repository_url]
+cd [project_name]
+```
 2. Install dependencies:
 
 ```bash
