@@ -63,9 +63,13 @@ Contains Motoko source code for the backend logic of Solutio. This contains:
   - `main.mo`: The main entry point of the backend canister. Here the public functions are located.
   - `types.mo`: Defines Motoko types used across the backend. It helps in maintaining a clean codebase by abstracting type definitions into a separate module.
 
-## Solutio's ecosystem software overview
+## Solutio's ecosystem interaction overview
+
+<img src="Canisters interaction.jpg" alt="Alt Text" width="500">
 
 ## Solutio's software architecture overview
+
+<img src="Solutio_architecture_overview.jpg" alt="Alt Text" width="500">
 
 ## Getting Started
 
