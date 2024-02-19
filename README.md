@@ -114,7 +114,7 @@ Contributions are welcome! Please, include feature requests with your improvemen
 
 ## Links
 - Developer: [Bautista Martinez](https://github.com/Bautista1999/solut/commits?author=Bautista1999)
-- Project front-end: https://github.com/your_username/solutio
+- Project front-end: https://github.com/Bautista1999/solut/blob/main/README.md
 - Solutio's webpage: https://xh6qb-uyaaa-aaaal-acuaq-cai.icp0.io/
 - Solutio's homepage: https://home.solutio.one/
-- Juno: juno.build
+- Juno: https://juno.build
