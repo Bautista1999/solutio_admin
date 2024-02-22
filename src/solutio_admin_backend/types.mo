@@ -1,4 +1,5 @@
 import Principal "mo:base/Principal";
+import Nat "mo:base/Nat";
 module {
     public type Doc = {
         updated_at : ?Nat64;
@@ -6,6 +7,17 @@ module {
         data : Blob;
         description : ?Text;
         created_at : Nat64;
+    };
+    public type SolutionStatus = {
+        status : Text;
+    };
+    public type Pledge = {
+        doc_key : Text;
+        idea_id : Text;
+        feature_id : Text;
+        amount : Nat64;
+        expected_amount : Nat64;
+        user : Principal;
     };
     public type DocResponse = {
         updated_at : Nat64;
@@ -74,4 +86,25 @@ module {
         key : Text;
         docInput : DocInput;
     };
+
+    public type PledgeCreateInput = {
+        doc_key : Text;
+        idea_id : Text;
+        feature_id : Text;
+        amount : Nat64;
+        accounta : Blob;
+    };
+
+    public type User = {
+        user : Text;
+        amount_pledged : Nat;
+        amount_paid : Nat;
+    };
+
+    public type UserPledgeListResult = { #ok : [User]; #err : Text };
+    public type TotalPledging = {
+        pledges : Nat64;
+        expected : Nat64;
+    };
+    public type TotalPledgingResult = { #ok : TotalPledging; #err : Text };
 };
