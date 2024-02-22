@@ -16,7 +16,6 @@ module {
         list_docs : (Text, T.ListDocsFilter) -> async T.ListDocsResponse;
         del_doc : (Text, Text, { updated_at : ?Nat64 }) -> async ();
         del_many_docs : [(Text, Text, { updated_at : ?Nat64 })] -> async ();
-
     };
 
     // *******setJunoDoc********
