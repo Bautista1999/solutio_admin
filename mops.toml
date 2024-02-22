@@ -1,0 +1,3 @@
+[dependencies]
+base = "0.10.4"
+serde = "2.2.0"
