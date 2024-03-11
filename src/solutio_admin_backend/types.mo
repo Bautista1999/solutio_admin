@@ -106,5 +106,38 @@ module {
         pledges : Nat64;
         expected : Nat64;
     };
+    public type PledgeActive = {
+        pledge : Nat64;
+        expected : Nat64;
+    };
+    public type PledgeActiveNat = {
+        pledge : Nat;
+        expected : Nat;
+    };
+    public type ReputationNumbers = {
+        amount_promised : Nat64;
+        amount_paid : Nat64;
+    };
+    public type ReputationNumbersNat = {
+        amount_promised : Nat;
+        amount_paid : Nat;
+    };
+    public type ReputationNumbersResult = {
+        #ok : ReputationNumbers;
+        #err : Text;
+    };
+
+    public type TotalRevenue = {
+        total_revenue : Nat;
+    };
+
+    public type PledgeActiveResult = {
+        #ok : PledgeActive;
+        #err : Text;
+    };
+    public type TotalPledgingNat = {
+        pledges : Nat;
+        expected : Nat;
+    };
     public type TotalPledgingResult = { #ok : TotalPledging; #err : Text };
 };
