@@ -67,6 +67,32 @@ Contains Motoko source code for the backend logic of Solutio. This contains:
     9. [deleteManyJunoDocs](https://forum.solutio.one/-159/deletemanyjunodocs-documentation)(): function to delete docs in Juno.
   
   - `main.mo`: The main entry point of the backend canister. Here the public functions are located.
+    1. [pledgeCreate()](https://forum.solutio.one/-164): This function is used to initiate a new Pledge for a requested feature. It verifies the existence and eligibility of the feature for new pledges before adding the pledge to the "pledges_active" database table. 
+    
+    2. [pledgeEdit()](https://forum.solutio.one/-165): Used to edit existing pledges. Has to check if the pledge exists and can be edited, has to check if the pledge is part of a feature that is already locked (being delivered as a solution), and then updates the amount. 
+    
+    3. [solutionSubmit()](https://forum.solutio.one/-166/solutionsubmit-documentation): This endpoint marks a Solution as completed and initiates the approval process by the pledgers. It updates the solution status and notifies followers while preparing the pledges for approval verification. 
+    
+    3. [updateSolutionStatus](https://forum.solutio.one/-176/updatesolutionstatus-documentation): Changes the status of a solution in the `solution_status` collection, through the admin canister. 
+    
+    5. [pledgeApprovedVerify](https://forum.solutio.one/-167/pledgeapprovedverify-documentation)](): This function checks the legitimacy of an approved pledge by examining the ICRC Ledger and updates the pledge's status based on the verification result.
+    
+    6. [pledgeApprovedCounter](https://forum.solutio.one/-168/pledgeapprovecounter-documentation)](): It maintains an accurate count of approved pledges by altering the "total approved" amount for the Solution whenever there is a change.
+       
+    8. [followersCounter()](https://forum.solutio.one/-169/followerscounter-documentation): This function is triggered when there is a change in followers or likes. It updates the "total likes/followers field" by incrementing or decrementing the count accordingly.
+       
+    7. [ideasCounter()](https://forum.solutio.one/-170/ideascounter-documentation): This endpoint is responsible for tracking the creation and deletion of ideas within Solutio. It adjusts the total ideas count by either increasing or decreasing it based on the event
+       
+    7. [pledgesCounter()](https://forum.solutio.one/-171/pledgescounter-documentation): Whenever a pledge is made, this function recalculates the total pledges by adding or subtracting the pledge amount. It ensures that the total reflects the sum of all pledges across all features, ideas, and the entire Solutio platform.
+       
+    7. [transfersBuildersCounter](https://forum.solutio.one/-172/transfersbuilderscounter-documentation): This function is activated whenever a reward is paid out. It updates the "total builder revenue" variable by adding or subtracting the reward amount.
+       
+    7. [solutionsCompletedCounter()](https://forum.solutio.one/-173/solutionscompletedcounter-documentation): Called upon the completion of a project, this function increments or decrements the total number of completed projects within Solutio.
+       
+    7. [userRevenueCounter()](https://forum.solutio.one/-174/userrevenuecounter-documentation): Tracks and updates the "total earned" amount for users as they earn revenue through the platform.
+       
+    7. [ideaRevenueCounter()](https://forum.solutio.one/-175/idearevenuecounter-documentation): Monitors and adjusts the "total earned" from ideas whenever a user makes a payment.
+       
   - `types.mo`: Defines Motoko types used across the backend. It helps in maintaining a clean codebase by abstracting type definitions into a separate module.
 
 ## Solutio's ecosystem interaction overview
