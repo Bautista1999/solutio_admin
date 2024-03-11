@@ -56,7 +56,7 @@ module {
                                     return #ok(users);
                                 };
                                 case null {
-                                    return #err("Incorrectly parsed");
+                                    return #err("Unexpected error: Incorrectly parsed");
                                 };
                             };
                         };
@@ -118,15 +118,14 @@ module {
         for (thisUser in users.vals()) {
             if (thisUser.user == user.user) {
                 // He has already pledged
-                let newUser : [T.User] = [{
-                    user = user.user;
-                    amount_pledged = user.amount_pledged;
-                    amount_paid = user.amount_paid;
-                }];
+                var amountPledged = user.amount_pledged + thisUser.amount_pledged;
+                if (amountPledged == 0) {
+                    amountPledged := user.amount_paid;
+                };
                 updatedUsers.add({
                     user = user.user;
-                    amount_pledged = user.amount_pledged;
-                    amount_paid = user.amount_paid;
+                    amount_pledged = amountPledged;
+                    amount_paid = user.amount_paid + thisUser.amount_paid;
                 });
                 userFound := true;
             } else {
@@ -136,11 +135,17 @@ module {
                     amount_paid = thisUser.amount_paid;
                 });
             };
+
         };
+
         if (userFound == false) {
+            var amountPledged = user.amount_pledged;
+            if (amountPledged == 0) {
+                amountPledged := user.amount_paid;
+            };
             updatedUsers.add({
                 user = user.user;
-                amount_pledged = user.amount_pledged;
+                amount_pledged = amountPledged;
                 amount_paid = user.amount_paid;
             });
         };
@@ -154,13 +159,18 @@ module {
             let info = Text.decodeUtf8(data);
             switch (info) {
                 case (?info) {
+                    //return #err("Data stringyfied: " #info);
                     let blob = serdeJson.fromText(info, null);
                     switch (blob) {
                         case (#ok(blob)) {
-                            let money : ?T.TotalPledging = from_candid (blob);
+                            let money : ?T.TotalPledgingNat = from_candid (blob);
                             switch (money) {
                                 case (?money) {
-                                    return #ok(money);
+                                    let moneyNat64 : T.TotalPledging = {
+                                        pledges = Nat64.fromNat(money.pledges);
+                                        expected = Nat64.fromNat(money.expected);
+                                    };
+                                    return #ok(moneyNat64);
                                 };
                                 case null {
                                     return #err("Incorrectly parsed");
@@ -188,7 +198,13 @@ module {
             expected = expected + pledgesInfo.expected;
         };
     };
-    public func totalPledgesEncode(data : T.TotalPledging) : async {
+    public func totalPledgesUpdate_edit(amount : Nat64, expected : Nat64, pledgesInfo : T.TotalPledging, previousPledge : T.PledgeActive) : T.TotalPledging {
+        let updatedPledgeInfo : T.TotalPledging = {
+            pledges = amount + pledgesInfo.pledges - previousPledge.pledge;
+            expected = expected + pledgesInfo.expected - previousPledge.expected;
+        };
+    };
+    public func totalPledgesEncode(data : T.TotalPledgingNat) : async {
         #ok : Blob;
         #err : Text;
     } {
