@@ -37,6 +37,10 @@ solutio_admin
 │   │
 │   └── solutio_admin_backend
 │      ├── juno.bridge.mo
+│      ├── notifications.mo
+│      ├── icrc.bridge.mo
+│      ├── encoding.mo
+│      ├── validate.mo
 │      ├── main.mo
 │      └── types.mo
 └── webpack.config.js
@@ -93,7 +97,20 @@ Contains Motoko source code for the backend logic of Solutio. This contains:
        
     7. [ideaRevenueCounter()](https://forum.solutio.one/-175/idearevenuecounter-documentation): Monitors and adjusts the "total earned" from ideas whenever a user makes a payment.
        
+    9. [solutionApproveEdit()](https://forum.solutio.one/-179/solutionapproveedit-documentation): Is designed to edit an existing approval of a pledge made towards a solution on the Solutio platform. It allows for the adjustment of the approved amount in cases where the initial approval needs to be modified.
+   
+    10. [solutionReject()](https://forum.solutio.one/-178/solutionreject-documentation): Crafted to facilitate the rejection of a solution submitted within the Solutio platform. It's designed to reset the "paid" value of pledges associated with the rejected solution to 0, update the pledge status to reflect the rejection, and make necessary adjustments to the total approved amount and user reputation accordingly. This function is critical for maintaining the integrity and accuracy of financial transactions and user engagements on the platform, especially in cases where a submitted solution does not meet the required standards or expectations..
+        
+    12. [deleteElement()](https://forum.solutio.one/-182/deleteelement-documentation): Designed to ensure comprehensive removal of an element (e.g., idea, user, solution, or feature) and all its associated documents within the Solutio platform. This function aims to maintain data integrity and cleanliness by eliminating not just the primary document but also related documents like revenue counters, pledges, search indexes, and follower counts.
+       
   - `types.mo`: Defines Motoko types used across the backend. It helps in maintaining a clean codebase by abstracting type definitions into a separate module.
+  - `notifications.mo`: Defines the necessary functions to implement notifications within Solutio. Its main purpose its to work as the controller functions that creates and handles notifications within the platform.
+    
+    9. [createPersonalNotification()](https://forum.solutio.one/-180/createpersonalnotification-documentation): Serves the critical role of creating personalized notifications within the Solutio platform. It generates a unique notification for a specific target user, originating from a designated sender. The function encapsulates the process of notification encoding, unique identifier generation, and document storage within the Juno database, ensuring the notification is correctly directed and accessible to the intended recipient. 
+   
+    10. [createGlobalNotification()](https://forum.solutio.one/-181/createglobalnotification-documentation): Crafted to broadcast a notification related to a specific idea on the Solutio platform to all users following that idea. By generating a unique notification ID and associating the notification with the idea's ID, the function ensures that any relevant updates or information about the idea are disseminated efficiently to interested users.
+        
+    12. generate_random_uuid()(): This function generates random strings to be used as keys for notifications documents within our Juno Satellite. There's no documentation for this one because its a simple function. Worth to note that uses an external library called [UUID](https://github.com/aviate-labs/uuid.mo/blob/main/README.md) from [aviate-labs](https://github.com/aviate-labs).
 
 ## Solutio's ecosystem interaction overview
 
