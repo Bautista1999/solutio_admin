@@ -140,4 +140,13 @@ module {
         expected : Nat;
     };
     public type TotalPledgingResult = { #ok : TotalPledging; #err : Text };
+
+    public type Notification = {
+        title : Text;
+        subtitle : Text;
+        imageURL : Text;
+        linkURL : Text;
+        sender : Text;
+        description : Text;
+    };
 };
