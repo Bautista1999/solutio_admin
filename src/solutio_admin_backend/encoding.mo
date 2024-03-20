@@ -247,4 +247,35 @@ module {
             throw Error.reject(Error.message(e));
         };
     };
+
+    public func notificationEncode(data : T.Notification) : async Blob {
+        try {
+            // title : Text;
+            // subtitle : Text;
+            // imageURL : Text;
+            // linkURL : Text;
+            // sender : Text;
+            let UserKeys = ["title", "subtitle", "imageURL", "linkURL", "sender"];
+            let blob : Blob = to_candid (data);
+            let json_result = JSON.toText(blob, UserKeys, null);
+            switch (json_result) {
+                case (#ok(json)) {
+                    let info : Blob = Text.encodeUtf8(json);
+                    switch (?info) {
+                        case (?info) {
+                            return info;
+                        };
+                        case (null) {
+                            throw Error.reject("Data was incorrectly decoded");
+                        };
+                    };
+                };
+                case (#err(error)) {
+                    throw Error.reject(error);
+                };
+            };
+        } catch (e) {
+            throw Error.reject(Error.message(e));
+        };
+    };
 };
