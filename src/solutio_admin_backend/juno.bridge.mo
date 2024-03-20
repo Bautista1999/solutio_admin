@@ -282,6 +282,6 @@ module {
             let error = await handleErrors(errore);
             return error;
         };
-        return "Success";
+        return "Success!";
     };
 };
