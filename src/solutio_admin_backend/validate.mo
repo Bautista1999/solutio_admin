@@ -154,6 +154,49 @@ module {
         return updatedUsersArray;
 
     };
+    // edits the amount paid of a given user.
+    public func iterateUsersPledges_editPayment(users : [T.User], user : T.User) : [T.User] {
+        var updatedUsers : Buffer.Buffer<T.User> = Buffer.Buffer<T.User>(0);
+        var userFound : Bool = false;
+        for (thisUser in users.vals()) {
+            if (thisUser.user == user.user) {
+                // He has already pledged
+                var amountPledged = user.amount_pledged + thisUser.amount_pledged;
+                if (amountPledged == 0) {
+                    amountPledged := user.amount_paid;
+                };
+                updatedUsers.add({
+                    user = user.user;
+                    amount_pledged = amountPledged;
+                    amount_paid = user.amount_paid; //new amount
+                });
+                userFound := true;
+            } else {
+                updatedUsers.add({
+                    user = thisUser.user;
+                    amount_pledged = thisUser.amount_pledged;
+                    amount_paid = thisUser.amount_paid;
+                });
+            };
+
+        };
+
+        if (userFound == false) {
+            var amountPledged = user.amount_pledged;
+            if (amountPledged == 0) {
+                amountPledged := user.amount_paid;
+            };
+            updatedUsers.add({
+                user = user.user;
+                amount_pledged = amountPledged;
+                amount_paid = user.amount_paid;
+            });
+        };
+        let updatedUsersArray : [T.User] = Buffer.toArray(updatedUsers);
+
+        return updatedUsersArray;
+
+    };
     public func totalPledgesDecode(data : Blob) : async T.TotalPledgingResult {
         try {
             let info = Text.decodeUtf8(data);
