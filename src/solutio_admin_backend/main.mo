@@ -10,6 +10,8 @@ import Text "mo:base/Text";
 import Int "mo:base/Int";
 import Nat "mo:base/Nat";
 import Buffer "mo:base/Buffer";
+import Source "mo:uuid/async/SourceV4";
+import UUID "mo:uuid/UUID";
 import icrc "./icrc.bridge";
 import val "./validate";
 import enc "./encoding";
@@ -126,6 +128,12 @@ actor Admin {
 
   };
 
+  public shared (msg) func createPersonalNotification(sender : Text, target : Text, title : Text, description : Text, image : Text) : async Text {
+    let g = Source.Source();
+    let noti_id : Text = UUID.toText(await g.new());
+    return noti_id;
+  };
+
   public shared (msg) func userPrincipal() : async Text {
     return Principal.toText(msg.caller);
   };
@@ -134,27 +142,35 @@ actor Admin {
     Debug.print(Principal.toText(msg.caller));
     return await bridge.setJunoDoc(collection, key, doc);
   };
+
   public shared (msg) func getDoc(collection : Text, key : Text) : async T.GetDocResult {
     return await bridge.getJunoDoc(collection, key);
   };
+
   public func setManyDocs(docs : T.SetManyDocsInput) : async Text {
     return await bridge.setManyJunoDocs(docs);
   };
+
   public func getManyDocs(docsInput : T.GetManyDocsInput) : async T.GetManyDocsResult {
     return await bridge.getManyJunoDocs(docsInput);
   };
+
   public func listDocs(collection : Text, filter : T.ListDocsFilter) : async T.ListDocsResult {
     return await bridge.listJunoDocs(collection, filter);
   };
+
   public func updateDocument(collection : Text, key : Text, docsInput : T.DocInput) : async Text {
     return await bridge.updateJunoDocument(collection, key, docsInput);
   };
+
   public func updateManyDocs(docs : [T.CollectionKeyPair]) : async Text {
     return await bridge.updateManyJunoDocs(docs);
   };
+
   public func deleteDoc(collection : Text, key : Text) : async Text {
     return await bridge.deleteJunoDoc(collection, key);
   };
+
   public func deleteManyDocs(docs : [(Text, Text, { updated_at : ?Nat64 })]) : async Text {
     return await bridge.deleteManyJunoDocs(docs);
   };
@@ -214,6 +230,7 @@ actor Admin {
     var descPl_Sol : ?Text = null;
     var descPl_id : ?Text = null;
     var descPl_fea : ?Text = null;
+    var idea_owner : Text = idea_id;
     switch getDocResponse {
       case (#ok(response)) {
         for ((text, maybeDoc) in response.vals()) {
@@ -283,6 +300,7 @@ actor Admin {
                     if (Text.contains(description, #text "delivered") or Text.contains(description, #text "completed")) {
                       throw Error.reject("This idea is not available for pledging. It was already delivered or completed.");
                     };
+                    idea_owner := Principal.toText(doc.owner);
                   };
                 };
               };
@@ -495,10 +513,17 @@ actor Admin {
     if (Text.notEqual(counter, "Pledges counter modified successfully!")) {
       throw Error.reject("Failed to update pledges_counter: " # counter);
     };
-    //TODO: Notifications for creators and devs.
-    let notif = await noti.createNotification();
-    if (Text.notEqual(notif, "Success")) {
-      throw Error.reject("Failed to notify listeners: " # notif);
+    let notification : T.Notification = {
+      title = "New Pledge!";
+      subtitle = "User has pledged" # Nat64.toText(amount) # "!";
+      description = "User with key" # Principal.toText(caller) # "has pledged into your idea.";
+      imageURL = "https://st2.depositphotos.com/5375910/9423/v/450/depositphotos_94239928-stock-illustration-donate-money-vector-icon.jpg";
+      linkURL = "/idea?id=" #idea_id;
+      sender = Principal.toText(caller);
+    };
+    let notif = await noti.createPersonalNotification(Principal.toText(caller), idea_owner, notification);
+    if (Text.notEqual(notif, "Success!")) {
+      throw Error.reject("THe pledge was created succesfully, but failed to notify listeners: " # notif);
     };
     return "Success";
   };
@@ -568,6 +593,7 @@ actor Admin {
     var descPl_pledge : ?Text = null;
     var descPl_id : ?Text = null;
     var descPl_fea : ?Text = null;
+    var idea_owner : Text = idea_id;
     switch getDocResponse {
       case (#ok(response)) {
         for ((text, maybeDoc) in response.vals()) {
@@ -658,6 +684,7 @@ actor Admin {
                     if (Text.contains(description, #text "delivered") or Text.contains(description, #text "completed")) {
                       throw Error.reject("This idea is not available for pledging. It was already delivered or completed.");
                     };
+                    idea_owner := Principal.toText(doc.owner);
                   };
                 };
               };
@@ -876,6 +903,18 @@ actor Admin {
     if (Text.notEqual(pledgeCreation, "Success!")) {
       throw Error.reject("Failed to edit pledge: " # pledgeCreation);
     };
+    let notification : T.Notification = {
+      title = "New Pledge!";
+      subtitle = "User has pledged" # Nat64.toText(amount) # "!";
+      description = "User with key" # Principal.toText(caller) # "has pledged into your idea.";
+      imageURL = "https://st2.depositphotos.com/5375910/9423/v/450/depositphotos_94239928-stock-illustration-donate-money-vector-icon.jpg";
+      linkURL = "/idea?id=" #idea_id;
+      sender = Principal.toText(caller);
+    };
+    let notif = await noti.createPersonalNotification(Principal.toText(caller), idea_owner, notification);
+    if (Text.notEqual(notif, "Success!")) {
+      throw Error.reject("THe pledge was created succesfully, but failed to notify listeners: " # notif);
+    };
 
     return "Success";
   };
@@ -997,9 +1036,17 @@ actor Admin {
     if (Text.notEqual(updateStatusResult, "Success!")) {
       throw Error.reject("Failed to change the status: " # updateStatusResult);
     };
-    let notif = await noti.createNotification();
-    if (Text.notEqual(notif, "Success")) {
-      throw Error.reject("Failed to notify listeners: " # notif);
+    let notification : T.Notification = {
+      title = "Solution submited!";
+      subtitle = "The owner has delivered the solution of the idea" # idea_id;
+      description = "The owner" # Principal.toText(caller) # "has delivered the solution. Go check it out!";
+      imageURL = "https://cdn-icons-png.flaticon.com/512/10543/10543121.png";
+      linkURL = "/solution?id=" #sol_id;
+      sender = Principal.toText(caller);
+    };
+    let notif = await noti.createGlobalNotification(idea_id, notification);
+    if (Text.notEqual(notif, "Success!")) {
+      throw Error.reject("Status changed successfully, but failed to notify listeners: " # notif);
     };
     return "Success";
   };
@@ -1099,9 +1146,17 @@ actor Admin {
       };
     };
 
-    let notif = await noti.createNotification();
-    if (Text.notEqual(notif, "Success")) {
-      throw Error.reject("Failed to notify listeners: " # notif);
+    let notification : T.Notification = {
+      title = "Solution status changed!";
+      subtitle = "The owner has changed the solution status to '" # status # "' of the solution" # sol_id;
+      description = "The owner" # Principal.toText(caller) # "has delivered the solution. Go check it out!";
+      imageURL = "https://cdn-icons-png.flaticon.com/512/10543/10543121.png";
+      linkURL = "/solution?id=" #sol_id;
+      sender = Principal.toText(caller);
+    };
+    let notif = await noti.createGlobalNotification(sol_id, notification);
+    if (Text.notEqual(notif, "Success!")) {
+      throw Error.reject("Status changed successfully, but failed to notify listeners: " # notif);
     };
     return "Success";
 
@@ -1126,7 +1181,6 @@ actor Admin {
   //  - Success in this function triggers updates in user reputation and the total approved amount for solutions, contributing to the overall transparency and trustworthiness of the Solutio platform.
   // Official Documentation:
   //  - For comprehensive details and usage scenarios of the `pledgeApprovedVerify` function, including examples and best practices, please refer to https://forum.solutio.one/-167/pledgeapprovedverify-documentation
-
   public shared (msg) func pledgeApprovedVerify(sol_id : Text, idea_id : Text, amount : Nat64, trans_number : Nat64) : async Text {
     // We have to check that the solution status is "delivered", otherwise we need to throw an error
     // Then we need to update the `amount_paid` field in the array of users that pledged in the collection `pledges_solution`. If there is no entry, we add it and the amount_pledged = amount and amount_paid = amount.
@@ -1146,6 +1200,348 @@ actor Admin {
     if (Principal.isAnonymous(caller)) {
       throw Error.reject("Anonymous cannot approve solutions.");
     };
+    let docInput1 : (Text, Text) = ("solution_status", "SOL_STAT_" # sol_id);
+    let docInput2 : (Text, Text) = ("reputation", "REP_" # Principal.toText(caller));
+    let docInput3 : (Text, Text) = ("pledges_solution", "SOL_PL_" # idea_id);
+    let docInput4 : (Text, Text) = ("idea", idea_id);
+    var docs : [(Text, Text)] = [docInput1, docInput2, docInput3, docInput4];
+    var descPl_Sol : ?Text = null;
+    var updAtPl_sol : ?Nat64 = null;
+    var updAt_rep : ?Nat64 = null;
+    var reputation : ?Nat = null;
+    var reputationNumbers : ?T.ReputationNumbers = null;
+    var userPledgeList : [T.User] = [];
+    let getDocResponse : T.GetManyDocsResult = await bridge.getManyJunoDocs(docs);
+    var idea_owner : Text = idea_id;
+    switch getDocResponse {
+      case (#ok(response)) {
+        for ((text, maybeDoc) in response.vals()) {
+          switch (maybeDoc) {
+            // We check if any document requested is non-existent
+            case (null) {
+              if (text == "SOL_STAT_" # sol_id) {
+                throw Error.reject("Solution status document doesnt exist");
+              };
+              if (text == "REP_" # Principal.toText(caller)) {
+                throw Error.reject("Reputation document doesnt exist");
+              };
+              if (text == "SOL_PL_" # idea_id) {
+                throw Error.reject("Pledges_solution document doesnt exist");
+              };
+              if (text == idea_id) {
+                throw Error.reject("idea document doesnt exist");
+              };
+            };
+            case (?doc) {
+              if (text == "SOL_STAT_" # sol_id) {
+                switch (doc.description) {
+                  case (null) {
+                    throw Error.reject("Solution status document should have a description");
+                  };
+                  case (?description) {
+                    if ((Text.contains(description, #text "delivered") or Text.contains(description, #text "completed")) == false) {
+                      throw Error.reject("Error: The project was not delivered nor completed. You cant approve it yet.");
+                    };
+                  };
+                };
+              };
+              if (text == "REP_" # Principal.toText(caller)) {
+                switch (doc.description) {
+                  case (null) {
+                    throw Error.reject("Reputation document should have a description");
+                  };
+                  case (?description) {
+                    reputation := Nat.fromText(description);
+                    if (reputation == null) {
+                      reputation := ?80;
+                    };
+                    updAt_rep := ?doc.updated_at;
+                    let reputationNumbersResult = await enc.reputationNumbersDecode(doc.data);
+                    reputationNumbers := switch (reputationNumbersResult) {
+                      case (#ok(response)) {
+                        ?response;
+                      };
+                      case (#err(error)) {
+                        throw Error.reject(error);
+                      };
+                    };
+
+                  };
+                };
+              };
+              if (text == "SOL_PL_" # idea_id) {
+                updAtPl_sol := ?doc.updated_at;
+                descPl_Sol := doc.description;
+                try {
+                  let data : T.UserPledgeListResult = await val.pledgesSolutionDecode(doc.data);
+                  switch (data) {
+                    case (#ok(response)) {
+                      userPledgeList := response;
+                    };
+                    case (#err(error)) {
+                      throw Error.reject("User pledges list could not be parsed.");
+                    };
+                  };
+                } catch (error) {
+                  throw Error.reject("Data does not have information");
+                };
+              };
+              if (text == idea_id) {
+                idea_owner := Principal.toText(doc.owner);
+              };
+            };
+          };
+        };
+      };
+      case (#err(error)) {
+        return error;
+      };
+    };
+    //Validation: Check the approval occured and that the amount is the one passed.
+    //  let acc : icrc.BinaryAccountBalanceArgs = { account = accounta };
+    // let balance = await icrc.icrc.account_balance(acc);
+    let queryArgs : icrc.GetBlocksArgs = {
+      start = trans_number;
+      length = Nat64.fromNat(1);
+    };
+    let queryBlock : icrc.QueryBlocksResponse = await icrc.icrc.query_blocks(queryArgs);
+    let hasBlocks : Bool = queryBlock.blocks.size() != 0;
+    switch (hasBlocks) {
+      case (true) {
+        let transaction = queryBlock.blocks[0].transaction;
+        switch (transaction.operation) {
+          case (null) {
+            throw Error.reject("Something went wong in the approval process");
+          };
+          case (?operation) {
+            //let approvedAmount = operation.approve.allowance.e8s;
+            switch (operation) {
+              case (#Approve { fee; from; allowance_e8s; allowance; expected_allowance; expires_at; spender }) {
+                let approvedAmount : Nat64 = allowance.e8s;
+                if (approvedAmount != amount) {
+                  throw Error.reject("The amount is not the approved amount: " # Nat64.toText(amount) # " | approved amount: " # Nat64.toText(approvedAmount));
+                };
+              };
+              case (_) {
+                throw Error.reject("The operation is not 'approve'");
+              };
+
+            };
+          };
+        };
+      };
+      case (false) {
+        throw Error.reject("Transaction number didnt produced any blocks.");
+      };
+    };
+    //Now we have to update pledges_solution and reputation
+    // (1) pledges solution
+    let user : T.User = {
+      user = Principal.toText(caller);
+      amount_pledged = 0;
+      amount_paid = Nat64.toNat(amount);
+    };
+    userPledgeList := val.iterateUsersPledges(userPledgeList, user);
+    let userList = await val.pledgesSolutionEncode(userPledgeList);
+    var blobList : ?Blob = null;
+    switch (userList) {
+      case (#ok(blob)) {
+        blobList := ?blob;
+      };
+      case (#err(error)) {
+        throw Error.reject(error);
+      };
+    };
+    let listBlob : Blob = switch (blobList) {
+      case (null) {
+        // Handle the null case, e.g., by throwing an error or providing a default value
+        throw Error.reject("Blob is unexpectedly null");
+      };
+      case (?blob) {
+        blob;
+      };
+    };
+
+    // (2) reputation
+    let reputationInfo : T.ReputationNumbers = switch (reputationNumbers) {
+      case (null) {
+        throw Error.reject("The reputation information is null");
+      };
+      case (?rep) {
+        rep;
+      };
+    };
+    let userInfo : T.User = switch (getUserPledgeInfo((Principal.toText(caller)), userPledgeList)) {
+      case (#err(err)) {
+        // Case it wasnt pledged and its approving out of nowhere
+        {
+          user = Principal.toText(caller);
+          amount_pledged = Nat64.toNat(amount);
+          amount_paid = Nat64.toNat(amount);
+        };
+      };
+      case (#ok(respo)) {
+        if (respo.amount_paid != 0) {
+          //If the user has already approved, we dont need to sum again the amount_pledge number in the calculation.
+          {
+            user = Principal.toText(caller);
+            amount_pledged = 0;
+            amount_paid = respo.amount_paid;
+          };
+        } else {
+          {
+            user = Principal.toText(caller);
+            amount_pledged = respo.amount_pledged;
+            amount_paid = respo.amount_paid;
+          };
+        };
+      };
+    };
+    //Before calculating the reputation, wee need to know if the user has already approved.
+    // Why? because we dont want to sum up the same pledge 2 times in the calculation of the reputation.
+    // How do we do this? We check if the amount_paid stored in the pledges_solution document is 0. If it isnt, it means it was previously approved.
+    // If it was approved, the amount_pledged to pass over to the calculation needs to be 0. Else, it has to be the amount_pledge number.
+    let resultReputation : (Nat, T.ReputationNumbersNat) = recalculateReputation({ amount_promised = Nat64.toNat(reputationInfo.amount_promised); amount_paid = Nat64.toNat(reputationInfo.amount_paid) }, userInfo);
+    reputation := ?resultReputation.0;
+    reputationNumbers := ?{
+      amount_promised = Nat64.fromNat(resultReputation.1.amount_promised);
+      amount_paid = Nat64.fromNat(resultReputation.1.amount_paid);
+    };
+    let numbersReputation : T.ReputationNumbers = switch (reputationNumbers) {
+      case (null) {
+        throw Error.reject("Reputation numbers are unexpectedly null");
+      };
+      case ((?numbers)) {
+        numbers;
+      };
+    };
+    let reputationNumEncoding : Blob = switch (await enc.reputationEncode(numbersReputation)) {
+      case (#err(err)) {
+        throw Error.reject("Reputation numbers couldnt be encoded");
+      };
+      case (#ok(blob)) {
+        blob;
+      };
+    };
+    //Now we have to prepare the doc input to actually update the database.
+    // (1) pledges_solution
+    let listDocInput : T.DocInput = {
+      updated_at = updAtPl_sol;
+      data = listBlob;
+      description = descPl_Sol;
+
+    };
+    let docInputSet2 : (Text, Text, T.DocInput) = ("pledges_solution", "SOL_PL_" # idea_id, listDocInput);
+
+    // (2) reputation
+    let reputationNat : Nat = switch (reputation) {
+      case (null) {
+        throw Error.reject("The reputation is unexpectedly null");
+      };
+      case (?rep) {
+        rep;
+      };
+    };
+    let reputationInput : T.DocInput = {
+      updated_at = updAt_rep;
+      data = reputationNumEncoding;
+      description = ?Nat.toText(reputationNat);
+
+    };
+
+    let docInputSet3 : (Text, Text, T.DocInput) = ("reputation", "REP_" # Principal.toText(caller), reputationInput);
+    let approveCounter : (Text, Text, T.DocInput) = await pledgeApprovedCounter(sol_id, amount, "increase");
+    let docsInput = [docInputSet2, docInputSet3, approveCounter];
+    let updateData = await bridge.setManyJunoDocs(docsInput);
+    if (Text.notEqual(updateData, "Success!")) {
+      throw Error.reject("Failed to verify approval: " # updateData);
+    };
+
+    let notification : T.Notification = {
+      title = "New approval!";
+      subtitle = "User has approved" # Nat64.toText(amount) # "!";
+      description = "User with key" # Principal.toText(caller) # "has appproved your solution.";
+      imageURL = "https://assets.materialup.com/uploads/bcf6dd06-7117-424f-9a6e-4bb795c8fb4d/preview.png";
+      linkURL = "/solution?id=" #sol_id;
+      sender = Principal.toText(caller);
+    };
+    let notif = await noti.createPersonalNotification(Principal.toText(caller), idea_owner, notification);
+    if (Text.notEqual(notif, "Success!")) {
+      throw Error.reject("The approval was verified succesfully, but failed to notify listeners: " # notif);
+    };
+    return "Approval verified and added to database!";
+  };
+
+  func recalculateReputation(reputationNumbers : T.ReputationNumbersNat, userPayInfo : T.User) : (Nat, T.ReputationNumbersNat) {
+    var totalPromised = reputationNumbers.amount_promised + userPayInfo.amount_pledged;
+    if (totalPromised == 0) {
+      totalPromised := userPayInfo.amount_paid + reputationNumbers.amount_paid;
+    };
+    var totalPaid = reputationNumbers.amount_paid +userPayInfo.amount_paid;
+    if (totalPromised == 0) {
+      return (
+        80,
+        {
+          amount_promised = totalPromised;
+          amount_paid = totalPaid;
+        },
+      );
+    };
+    return (
+      (totalPaid * 100 / totalPromised),
+      {
+        amount_promised = totalPromised;
+        amount_paid = totalPaid;
+      },
+    );
+  };
+
+  func getUserPledgeInfo(user : Text, users : [T.User]) : {
+    #ok : T.User;
+    #err : Text;
+  } {
+    var updatedUsers : Buffer.Buffer<T.User> = Buffer.Buffer<T.User>(0);
+    var userFound : Bool = false;
+    for (thisUser in users.vals()) {
+      if (thisUser.user == user) {
+        // He has already pledged
+        return #ok(thisUser);
+
+      };
+    };
+    // return {
+    //   user = user;
+    //   amount_pledged = 0;
+    //   amount_paid = 0;
+    // };
+    return #err("User hasnt pledged into the idea.");
+  };
+
+  // *******solutionReject********
+  // Brief Description: Processes the rejection of a solution within the Solutio platform. It updates the pledge status and resets the 'paid' value to 0 for the pledger, ensuring no funds are transferred for a rejected solution. Additionally, the function adjusts the total approved amount and user reputation as necessary.
+  // Pre-Conditions:
+  //  - The solution must exist and be associated with a specific idea.
+  //  - The solution status must be checked to ensure it is in a state that allows for rejection.
+  //  - Caller must be authenticated and not anonymous.
+  //  - The solutionReject() assumes that the pledgeApprovedVerify() function has run successfully beforehand, without any pledge being approved due to the solution's rejection.
+  // Post-Conditions:
+  //  - Resets the 'paid' value in the pledges_solution collection for the user's pledge to 0.
+  //  - Updates the solution status to reflect its rejection.
+  //  - Adjusts user reputation based on the solution's rejection, impacting their standing within the Solutio community.
+  // Validators:
+  //  - Verifies that the caller has the authority to reject the solution, typically requiring specific roles or permissions.
+  //  - Checks for the existence of the solution and its eligibility for rejection based on its current status.
+  // External Functions Using It:
+  //  - May trigger notifications to inform relevant parties (e.g., the solution provider and pledgers) about the solution's rejection.
+  //  - Updates various metrics and counters related to solution approval and rejection within the platform.
+  // Official Documentation:
+  //  - For detailed information and further usage examples, refer to https://forum.solutio.one/-178/solutionreject-documentation
+  public shared (msg) func solutionReject(sol_id : Text, idea_id : Text) : async Text {
+    let caller = msg.caller;
+    if (Principal.isAnonymous(caller)) {
+      throw Error.reject("Anonymous cannot approve solutions.");
+    };
+    let amount : Nat64 = 0;
     let docInput1 : (Text, Text) = ("solution_status", "SOL_STAT_" # sol_id);
     let docInput2 : (Text, Text) = ("reputation", "REP_" # Principal.toText(caller));
     let docInput3 : (Text, Text) = ("pledges_solution", "SOL_PL_" # idea_id);
@@ -1235,51 +1631,23 @@ actor Admin {
         return error;
       };
     };
-    //Validation: Check the approval occured and that the amount is the one passed.
-    //  let acc : icrc.BinaryAccountBalanceArgs = { account = accounta };
-    // let balance = await icrc.icrc.account_balance(acc);
-    let queryArgs : icrc.GetBlocksArgs = {
-      start = trans_number;
-      length = Nat64.fromNat(1);
-    };
-    let queryBlock : icrc.QueryBlocksResponse = await icrc.icrc.query_blocks(queryArgs);
-    let hasBlocks : Bool = queryBlock.blocks.size() != 0;
-    switch (hasBlocks) {
-      case (true) {
-        let transaction = queryBlock.blocks[0].transaction;
-        switch (transaction.operation) {
-          case (null) {
-            throw Error.reject("Something went wong in the approval process");
-          };
-          case (?operation) {
-            //let approvedAmount = operation.approve.allowance.e8s;
-            switch (operation) {
-              case (#Approve { fee; from; allowance_e8s; allowance; expected_allowance; expires_at; spender }) {
-                let approvedAmount : Nat64 = allowance.e8s;
-                if (approvedAmount != amount) {
-                  throw Error.reject("The amount is not the approved amount: " # Nat64.toText(amount) # " | approved amount: " # Nat64.toText(approvedAmount));
-                };
-              };
-              case (_) {
-                throw Error.reject("The operation is not 'approve'");
-              };
-
-            };
-          };
-        };
-      };
-      case (false) {
-        throw Error.reject("Transaction number didnt produced any blocks.");
-      };
-    };
     //Now we have to update pledges_solution and reputation
     // (1) pledges solution
+    let previousPaidNumber : Nat = switch (getUserPledgeInfo((Principal.toText(caller)), userPledgeList)) {
+      case (#err(err)) {
+        // Case it wasnt pledged and its approving out of nowhere
+        0;
+      };
+      case (#ok(respo)) {
+        respo.amount_paid;
+      };
+    };
     let user : T.User = {
       user = Principal.toText(caller);
       amount_pledged = 0;
       amount_paid = Nat64.toNat(amount);
     };
-    userPledgeList := val.iterateUsersPledges(userPledgeList, user);
+    userPledgeList := val.iterateUsersPledges_editPayment(userPledgeList, user);
     let userList = await val.pledgesSolutionEncode(userPledgeList);
     var blobList : ?Blob = null;
     switch (userList) {
@@ -1309,7 +1677,7 @@ actor Admin {
         rep;
       };
     };
-    let userInfo : T.User = switch (getAmountPledged((Principal.toText(caller)), userPledgeList)) {
+    let userInfo : T.User = switch (getUserPledgeInfo((Principal.toText(caller)), userPledgeList)) {
       case (#err(err)) {
         // Case it wasnt pledged and its approving out of nowhere
         {
@@ -1388,64 +1756,319 @@ actor Admin {
     };
 
     let docInputSet3 : (Text, Text, T.DocInput) = ("reputation", "REP_" # Principal.toText(caller), reputationInput);
-    let approveCounter : (Text, Text, T.DocInput) = await pledgeApprovedCounter(sol_id, amount);
+    let approveCounter : (Text, Text, T.DocInput) = await pledgeApprovedCounter(sol_id, Nat64.fromNat(previousPaidNumber), "decrease");
     let docsInput = [docInputSet2, docInputSet3, approveCounter];
     let updateData = await bridge.setManyJunoDocs(docsInput);
     if (Text.notEqual(updateData, "Success!")) {
-      throw Error.reject("Failed to change the status: " # updateData);
+      throw Error.reject("Failed to update pledge info: " # updateData);
     };
-    //TODO: Notifications for creators and devs.
-    let notif = await noti.createNotification();
-    if (Text.notEqual(notif, "Success")) {
-      throw Error.reject("Failed to notify listeners: " # notif);
-    };
-    return "Approval verified and added to database!";
+    return "Solution rejected successfully";
   };
 
-  func recalculateReputation(reputationNumbers : T.ReputationNumbersNat, userPayInfo : T.User) : (Nat, T.ReputationNumbersNat) {
-    var totalPromised = reputationNumbers.amount_promised + userPayInfo.amount_pledged;
-    if (totalPromised == 0) {
-      totalPromised := userPayInfo.amount_paid + reputationNumbers.amount_paid;
-    };
-    var totalPaid = reputationNumbers.amount_paid +userPayInfo.amount_paid;
-    if (totalPromised == 0) {
-      return (
-        80,
-        {
-          amount_promised = totalPromised;
-          amount_paid = totalPaid;
-        },
-      );
-    };
-    return (
-      (totalPaid * 100 / totalPromised),
-      {
-        amount_promised = totalPromised;
-        amount_paid = totalPaid;
-      },
-    );
-  };
+  // *******solutionApproveEdit********
+  // Brief Description: Allows for the modification of an existing approval for a solution within the Solutio platform. This function updates the 'paid' amount to the newly specified value, adjusting the total approved amount and user reputation accordingly.
+  // Pre-Conditions:
+  //  - The solution must exist and be associated with a specific idea.
+  //  - Caller must be authenticated and not anonymous.
+  //  - The solution must have been previously approved, with a 'paid' amount already set.
+  //  - New approval amount and transaction number must be provided, reflecting the updated approval.
+  // Post-Conditions:
+  //  - Updates the 'paid' amount in the pledges_solution collection for the user's pledge to the new amount.
+  //  - Recalculates user reputation based on the updated approval, potentially affecting their standing within the Solutio community.
+  //  - Optionally, adjusts total approved amount for the solution to reflect the new approval amount.
+  // Validators:
+  //  - Ensures that the new approval amount and transaction number are valid and correspond to an actual transaction on the ledger.
+  //  - Confirms that the solution is still in a state that allows for approval modifications.
+  // External Functions Using It:
+  //  - Might interact with the ledger to verify the new transaction details.
+  //  - Could trigger notifications to inform relevant parties about the approval modification.
+  // Official Documentation:
+  //  - For more detailed guidelines on how to use this function, including examples and best practices, refer to https://forum.solutio.one/-179/solutionApproveEdit-documentation
 
-  func getAmountPledged(user : Text, users : [T.User]) : {
-    #ok : T.User;
-    #err : Text;
-  } {
-    var updatedUsers : Buffer.Buffer<T.User> = Buffer.Buffer<T.User>(0);
-    var userFound : Bool = false;
-    for (thisUser in users.vals()) {
-      if (thisUser.user == user) {
-        // He has already pledged
-        return #ok(thisUser);
+  public shared (msg) func solutionApproveEdit(sol_id : Text, idea_id : Text, amount : Nat64, trans_number : Nat64) : async Text {
+    let caller = msg.caller;
+    if (Principal.isAnonymous(caller)) {
+      throw Error.reject("Anonymous cannot approve solutions.");
+    };
+    let docInput1 : (Text, Text) = ("solution_status", "SOL_STAT_" # sol_id);
+    let docInput2 : (Text, Text) = ("reputation", "REP_" # Principal.toText(caller));
+    let docInput3 : (Text, Text) = ("pledges_solution", "SOL_PL_" # idea_id);
+    let docInput4 : (Text, Text) = ("idea", idea_id);
+    var docs : [(Text, Text)] = [docInput1, docInput2, docInput3, docInput4];
+    var descPl_Sol : ?Text = null;
+    var updAtPl_sol : ?Nat64 = null;
+    var updAt_rep : ?Nat64 = null;
+    var reputation : ?Nat = null;
+    var reputationNumbers : ?T.ReputationNumbers = null;
+    var userPledgeList : [T.User] = [];
+    let getDocResponse : T.GetManyDocsResult = await bridge.getManyJunoDocs(docs);
+    var idea_owner : Text = idea_id;
+    switch getDocResponse {
+      case (#ok(response)) {
+        for ((text, maybeDoc) in response.vals()) {
+          switch (maybeDoc) {
+            // We check if any document requested is non-existent
+            case (null) {
+              if (text == "SOL_STAT_" # sol_id) {
+                throw Error.reject("Solution status document doesnt exist");
+              };
+              if (text == "REP_" # Principal.toText(caller)) {
+                throw Error.reject("Reputation document doesnt exist");
+              };
+              if (text == "SOL_PL_" # idea_id) {
+                throw Error.reject("Pledges_solution document doesnt exist");
+              };
+            };
+            case (?doc) {
+              if (text == "SOL_STAT_" # sol_id) {
+                switch (doc.description) {
+                  case (null) {
+                    throw Error.reject("Solution status document should have a description");
+                  };
+                  case (?description) {
+                    if ((Text.contains(description, #text "delivered") or Text.contains(description, #text "completed")) == false) {
+                      throw Error.reject("Error: The project was not delivered nor completed. You cant approve it yet.");
+                    };
+                  };
+                };
+              };
+              if (text == "REP_" # Principal.toText(caller)) {
+                switch (doc.description) {
+                  case (null) {
+                    throw Error.reject("Reputation document should have a description");
+                  };
+                  case (?description) {
+                    reputation := Nat.fromText(description);
+                    if (reputation == null) {
+                      reputation := ?80;
+                    };
+                    updAt_rep := ?doc.updated_at;
+                    let reputationNumbersResult = await enc.reputationNumbersDecode(doc.data);
+                    reputationNumbers := switch (reputationNumbersResult) {
+                      case (#ok(response)) {
+                        ?response;
+                      };
+                      case (#err(error)) {
+                        throw Error.reject(error);
+                      };
+                    };
 
+                  };
+                };
+              };
+              if (text == "SOL_PL_" # idea_id) {
+                updAtPl_sol := ?doc.updated_at;
+                descPl_Sol := doc.description;
+                try {
+                  let data : T.UserPledgeListResult = await val.pledgesSolutionDecode(doc.data);
+                  switch (data) {
+                    case (#ok(response)) {
+                      userPledgeList := response;
+                    };
+                    case (#err(error)) {
+                      throw Error.reject("User pledges list could not be parsed.");
+                    };
+                  };
+                } catch (error) {
+                  throw Error.reject("Data does not have information");
+                };
+              };
+              if (text == idea_id) {
+                idea_owner := Principal.toText(doc.owner);
+              };
+            };
+          };
+        };
+      };
+      case (#err(error)) {
+        return error;
       };
     };
-    // return {
-    //   user = user;
-    //   amount_pledged = 0;
-    //   amount_paid = 0;
-    // };
-    return #err("User hasnt pledged into the idea.");
+    //Validation: Check the approval occured and that the amount is the one passed.
+    //  let acc : icrc.BinaryAccountBalanceArgs = { account = accounta };
+    // let balance = await icrc.icrc.account_balance(acc);
+    let queryArgs : icrc.GetBlocksArgs = {
+      start = trans_number;
+      length = Nat64.fromNat(1);
+    };
+    let queryBlock : icrc.QueryBlocksResponse = await icrc.icrc.query_blocks(queryArgs);
+    let hasBlocks : Bool = queryBlock.blocks.size() != 0;
+    switch (hasBlocks) {
+      case (true) {
+        let transaction = queryBlock.blocks[0].transaction;
+        switch (transaction.operation) {
+          case (null) {
+            throw Error.reject("Something went wong in the approval process");
+          };
+          case (?operation) {
+            //let approvedAmount = operation.approve.allowance.e8s;
+            switch (operation) {
+              case (#Approve { fee; from; allowance_e8s; allowance; expected_allowance; expires_at; spender }) {
+                let approvedAmount : Nat64 = allowance.e8s;
+                if (approvedAmount != amount) {
+                  throw Error.reject("The amount is not the approved amount: " # Nat64.toText(amount) # " | approved amount: " # Nat64.toText(approvedAmount));
+                };
+              };
+              case (_) {
+                throw Error.reject("The operation is not 'approve'");
+              };
+
+            };
+          };
+        };
+      };
+      case (false) {
+        throw Error.reject("Transaction number didnt produced any blocks.");
+      };
+    };
+    // Lets get the previous amount
+    let previousPaidNumber : Nat = switch (getUserPledgeInfo((Principal.toText(caller)), userPledgeList)) {
+      case (#err(err)) {
+        // Case it wasnt pledged and its approving out of nowhere
+        0;
+      };
+      case (#ok(respo)) {
+        respo.amount_paid;
+      };
+    };
+    //Now we have to update pledges_solution and reputation
+    // (1) pledges solution
+    let user : T.User = {
+      user = Principal.toText(caller);
+      amount_pledged = 0;
+      amount_paid = Nat64.toNat(amount);
+    };
+    userPledgeList := val.iterateUsersPledges_editPayment(userPledgeList, user);
+    let userList = await val.pledgesSolutionEncode(userPledgeList);
+    var blobList : ?Blob = null;
+    switch (userList) {
+      case (#ok(blob)) {
+        blobList := ?blob;
+      };
+      case (#err(error)) {
+        throw Error.reject(error);
+      };
+    };
+    let listBlob : Blob = switch (blobList) {
+      case (null) {
+        // Handle the null case, e.g., by throwing an error or providing a default value
+        throw Error.reject("Blob is unexpectedly null");
+      };
+      case (?blob) {
+        blob;
+      };
+    };
+
+    // (2) reputation
+    let reputationInfo : T.ReputationNumbers = switch (reputationNumbers) {
+      case (null) {
+        throw Error.reject("The reputation information is null");
+      };
+      case (?rep) {
+        rep;
+      };
+    };
+    let userInfo : T.User = switch (getUserPledgeInfo((Principal.toText(caller)), userPledgeList)) {
+      case (#err(err)) {
+        // Case it wasnt pledged and its approving out of nowhere
+        {
+          user = Principal.toText(caller);
+          amount_pledged = Nat64.toNat(amount);
+          amount_paid = Nat64.toNat(amount);
+        };
+      };
+      case (#ok(respo)) {
+        if (respo.amount_paid != 0) {
+          //If the user has already approved, we dont need to sum again the amount_pledge number in the calculation.
+          {
+            user = Principal.toText(caller);
+            amount_pledged = 0;
+            amount_paid = respo.amount_paid;
+          };
+        } else {
+          {
+            user = Principal.toText(caller);
+            amount_pledged = respo.amount_pledged;
+            amount_paid = respo.amount_paid;
+          };
+        };
+      };
+    };
+    //Before calculating the reputation, wee need to know if the user has already approved.
+    // Why? because we dont want to sum up the same pledge 2 times in the calculation of the reputation.
+    // How do we do this? We check if the amount_paid stored in the pledges_solution document is 0. If it isnt, it means it was previously approved.
+    // If it was approved, the amount_pledged to pass over to the calculation needs to be 0. Else, it has to be the amount_pledge number.
+    let resultReputation : (Nat, T.ReputationNumbersNat) = recalculateReputation({ amount_promised = Nat64.toNat(reputationInfo.amount_promised); amount_paid = Nat64.toNat(reputationInfo.amount_paid) }, userInfo);
+    reputation := ?resultReputation.0;
+    reputationNumbers := ?{
+      amount_promised = Nat64.fromNat(resultReputation.1.amount_promised);
+      amount_paid = Nat64.fromNat(resultReputation.1.amount_paid);
+    };
+    let numbersReputation : T.ReputationNumbers = switch (reputationNumbers) {
+      case (null) {
+        throw Error.reject("Reputation numbers are unexpectedly null");
+      };
+      case ((?numbers)) {
+        numbers;
+      };
+    };
+    let reputationNumEncoding : Blob = switch (await enc.reputationEncode(numbersReputation)) {
+      case (#err(err)) {
+        throw Error.reject("Reputation numbers couldnt be encoded");
+      };
+      case (#ok(blob)) {
+        blob;
+      };
+    };
+    //Now we have to prepare the doc input to actually update the database.
+    // (1) pledges_solution
+    let listDocInput : T.DocInput = {
+      updated_at = updAtPl_sol;
+      data = listBlob;
+      description = descPl_Sol;
+
+    };
+    let docInputSet2 : (Text, Text, T.DocInput) = ("pledges_solution", "SOL_PL_" # idea_id, listDocInput);
+
+    // (2) reputation
+    let reputationNat : Nat = switch (reputation) {
+      case (null) {
+        throw Error.reject("The reputation is unexpectedly null");
+      };
+      case (?rep) {
+        rep;
+      };
+    };
+    let reputationInput : T.DocInput = {
+      updated_at = updAt_rep;
+      data = reputationNumEncoding;
+      description = ?Nat.toText(reputationNat);
+
+    };
+
+    let docInputSet3 : (Text, Text, T.DocInput) = ("reputation", "REP_" # Principal.toText(caller), reputationInput);
+    var approveCounter : (Text, Text, T.DocInput) = await pledgeApprovedCounter(sol_id, amount, "increase");
+    approveCounter := await pledgeApprovedCounter(sol_id, Nat64.fromNat(previousPaidNumber), "decrease");
+    let docsInput = [docInputSet2, docInputSet3, approveCounter];
+    let updateData = await bridge.setManyJunoDocs(docsInput);
+    if (Text.notEqual(updateData, "Success!")) {
+      throw Error.reject("Failed to updated approval in database: " # updateData);
+    };
+    let notification : T.Notification = {
+      title = "New approval!";
+      subtitle = "User has approved" # Nat64.toText(amount) # "!";
+      description = "User with key" # Principal.toText(caller) # "has appproved your solution.";
+      imageURL = "https://assets.materialup.com/uploads/bcf6dd06-7117-424f-9a6e-4bb795c8fb4d/preview.png";
+      linkURL = "/solution?id=" #sol_id;
+      sender = Principal.toText(caller);
+    };
+    let notif = await noti.createPersonalNotification(Principal.toText(caller), idea_owner, notification);
+    if (Text.notEqual(notif, "Success!")) {
+      throw Error.reject("The approval was verified succesfully, but failed to notify listeners: " # notif);
+    };
+    return "Approval updated and added to database!";
   };
+
   // *******pledgeApprovedCounter()********
   // Brief Description: Updates the total approved amount for a solution upon a successful pledge approval, reflecting the latest state of pledges.
   // Pre-Conditions:
@@ -1464,7 +2087,7 @@ actor Admin {
   // Official Documentation:
   //  - For a detailed explanation and more examples of how `pledgeApprovedCounter` works within the Solutio platform's pledge approval process, visit https://forum.solutio.one/-168/pledgeapprovecounter-documentation
 
-  func pledgeApprovedCounter(sol_id : Text, amount : Nat64) : async (Text, Text, T.DocInput) {
+  func pledgeApprovedCounter(sol_id : Text, amount : Nat64, operation : Text) : async (Text, Text, T.DocInput) {
     let docInput1 : (Text, Text) = ("solution_approved", "SOL_APPR_" # sol_id);
     var docs : [(Text, Text)] = [docInput1];
     var solData : ?Blob = null;
@@ -1501,7 +2124,12 @@ actor Admin {
                         };
                       }
                     );
-                    totalApproved := totalApproved + amount;
+                    if (operation == "increase") {
+                      totalApproved := totalApproved + amount;
+                    } else {
+                      totalApproved := totalApproved - amount;
+                    };
+
                     descriptionInput := Nat64.toText(totalApproved);
                   };
                 };
@@ -1549,7 +2177,7 @@ actor Admin {
   // External Functions Using It:
   // Official Documentation:
   //  - For further details on how `followerCounter` works and its role in managing the social interactions within Solutio, visit https://forum.solutio.one/-169/followerscounter-documentation
-  public shared (msg) func followerCounter(el_id : Text, instruction : Bool) : async Text {
+  public shared (msg) func followerCounter(el_id : Text, instruction : Bool, what : Text) : async Text {
     // instruction : true -> follow, else unfollow
     let caller = msg.caller;
     let callerText = Principal.toText(caller);
@@ -1633,9 +2261,42 @@ actor Admin {
       description = ?descriptionFoll;
     };
     let docInputSet3 : (Text, Text, T.DocInput) = ("followers", "FOLL_" # el_id, docData);
+
+    let text : Text = switch (what) {
+      case ("idea") {
+        "r idea!";
+      };
+      case ("user") {
+        "!";
+      };
+      case ("solution") {
+        "r solution!";
+      };
+      case ("feature") {
+        "r feature!";
+      };
+      case _ {
+        throw Error.reject("Incorrect 'what' parameter. Type: " # what # "doesnt exist!");
+      };
+    };
+
     let updateData = await bridge.setManyJunoDocs([docInputSet3]);
     if (Text.notEqual(updateData, "Success!")) {
       throw Error.reject("Failed updated followes number: " # updateData);
+    };
+    if (instruction) {
+      let notification : T.Notification = {
+        title = "New follower!";
+        subtitle = "User with key" # Principal.toText(caller) # "has followed you";
+        description = "";
+        imageURL = "https://img.freepik.com/free-vector/user-follower-icons-social-media-notification-icon-speech-bubbles-vector-illustration_56104-847.jpg?size=626&ext=jpg&ga=GA1.1.1546980028.1703980800&semt=ais";
+        linkURL = "/user?id=" # Principal.toText(caller);
+        sender = Principal.toText(caller);
+      };
+      let notif = await noti.createPersonalNotification(Principal.toText(caller), el_id, notification);
+      if (Text.notEqual(notif, "Success!")) {
+        throw Error.reject("The approval was verified succesfully, but failed to notify listeners: " # notif);
+      };
     };
     return "Followers counter modified successfully!";
   };
@@ -2015,7 +2676,6 @@ actor Admin {
   //  - This function could be called following the resolution of a solution or the distribution of rewards, allowing for the dynamic update of users' earnings on the platform.
   // Official Documentation:
   //  - Detailed guidelines and examples on how `userRevenueCounter` aids in financial transparency and user motivation on the Solutio platform can be found at https://forum.solutio.one/-173/userRevenueCounter-documentation
-
   public func /*(msg)*/ userRevenueCounter(el_id : Text, amount : Nat) : async Text {
     // if (msg.caller != escrowCanister) {
     //   throw Error.reject "Caller not allowed to use this function";
@@ -2182,5 +2842,263 @@ actor Admin {
       throw Error.reject("Failed to update idea " # el_id # " revenue number: " # updatedData);
     };
     return "Idea total revenue modified successfully!";
+  };
+
+  // *******deleteElement********
+  // Brief Description: Facilitates the comprehensive removal of an element (idea, user, solution, or feature) and all its related documents on the Solutio platform, ensuring data integrity and cleanliness.
+  // Pre-Conditions:
+  //  - Caller must be authenticated and verified as the owner or have the necessary permissions to delete the element.
+  //  - The element and its associated documents must exist in the platform's database.
+  // Post-Conditions:
+  //  - Deletes the target element along with all related documents, including revenue counters, pledges, search indexes, and follower counts, ensuring no residual data is left.
+  // Validators:
+  //  - Ensures the element exists and the caller has the right to delete it.
+  //  - Validates the 'what' parameter to ensure the correct type of element is being targeted for deletion.
+  // External Functions Using It:
+  //  - This function can be utilized in various administrative, user settings, or system cleanup operations within the Solutio platform.
+  // Official Documentation:
+  //  - Comprehensive guidelines and best practices for utilizing this function can be found at https://forum.solutio.one/-182/deleteelement-documentation
+  public shared (msg) func deleteElement(el_id : Text, what : Text) : async Text {
+    let caller = msg.caller;
+    let callerText = Principal.toText(caller);
+    // del_many_docs input : [(Text, Text, { updated_at : ?Nat64 })]
+    switch (what) {
+      case ("idea") {
+        // Documents to delete: idea_revenue_counter, idea_feature_pledge, pledges_solution, idea, index_search, followers
+        let docInput1 : (Text, Text) = ("idea", el_id);
+        let docInput2 : (Text, Text) = ("pledges_solution", "SOL_PL_" # el_id);
+        let docInput3 : (Text, Text) = ("idea_feature_pledge", "PLG_IDEA_" # el_id);
+        let docInput4 : (Text, Text) = ("idea_revenue_counter", "REV_IDEA_" # el_id);
+        let docInput5 : (Text, Text) = ("index_search", "INDEX_" # el_id);
+        let docInput6 : (Text, Text) = ("followers", "FOLL_" # el_id);
+        var docs : [(Text, Text)] = [docInput1, docInput2, docInput3, docInput4, docInput5, docInput6];
+        var deleteDocsInput : Buffer.Buffer<(Text, Text, { updated_at : ?Nat64 })> = Buffer.Buffer<(Text, Text, { updated_at : ?Nat64 })>(0);
+        let getDocResponse : T.GetManyDocsResult = await bridge.getManyJunoDocs(docs);
+        switch getDocResponse {
+          case (#ok(response)) {
+            for ((text, maybeDoc) in response.vals()) {
+              switch (maybeDoc) {
+                // We check if any document requested is non-existent
+                case (null) {
+                  if (text == el_id) {
+                    throw Error.reject("Element doesnt exist!");
+                  };
+                };
+                case (?doc) {
+                  if (text == el_id) {
+                    if (msg.caller != doc.owner) {
+                      throw Error.reject("Caller is not the owner of the element.");
+                    };
+                    let docInput : (Text, Text, { updated_at : ?Nat64 }) = ("idea", el_id, { updated_at = ?doc.updated_at });
+                    deleteDocsInput.add(docInput);
+                  };
+                  if (text == "SOL_PL_" # el_id) {
+                    let docInput : (Text, Text, { updated_at : ?Nat64 }) = ("pledges_solution", "SOL_PL_" # el_id, { updated_at = ?doc.updated_at });
+                    deleteDocsInput.add(docInput);
+                  };
+                  if (text == "REV_IDEA_" # el_id) {
+                    let docInput : (Text, Text, { updated_at : ?Nat64 }) = ("idea_revenue_counter", "REV_IDEA_" # el_id, { updated_at = ?doc.updated_at });
+                    deleteDocsInput.add(docInput);
+                  };
+                  if (text == "INDEX_" # el_id) {
+                    let docInput : (Text, Text, { updated_at : ?Nat64 }) = ("index_search", "INDEX_" # el_id, { updated_at = ?doc.updated_at });
+                    deleteDocsInput.add(docInput);
+                  };
+                  if (text == "FOLL_" # el_id) {
+                    let docInput : (Text, Text, { updated_at : ?Nat64 }) = ("followers", "FOLL_" # el_id, { updated_at = ?doc.updated_at });
+                    deleteDocsInput.add(docInput);
+                  };
+                };
+              };
+            };
+          };
+          case (#err(error)) {
+            return error;
+          };
+        };
+        let result = await bridge.deleteManyJunoDocs(Buffer.toArray(deleteDocsInput));
+        if (result != "Success!") {
+          throw Error.reject("Idea couldnt be deleted: " # result);
+        };
+        return "Idea deleted successfully";
+      };
+      case ("user") {
+        // Documents to delete: users_revenue_counter, user, user_index, followers, reputation
+        let docInput1 : (Text, Text) = ("user", el_id);
+        let docInput3 : (Text, Text) = ("reputation", "REP_" # el_id);
+        let docInput4 : (Text, Text) = ("users_revenue_counter", "REV_" # el_id);
+        let docInput5 : (Text, Text) = ("user_index", "INDEX_" # el_id);
+        let docInput6 : (Text, Text) = ("followers", "FOLL_" # el_id);
+        var docs : [(Text, Text)] = [docInput1, docInput3, docInput4, docInput5, docInput6];
+        var deleteDocsInput : Buffer.Buffer<(Text, Text, { updated_at : ?Nat64 })> = Buffer.Buffer<(Text, Text, { updated_at : ?Nat64 })>(0);
+        let getDocResponse : T.GetManyDocsResult = await bridge.getManyJunoDocs(docs);
+        switch getDocResponse {
+          case (#ok(response)) {
+            for ((text, maybeDoc) in response.vals()) {
+              switch (maybeDoc) {
+                // We check if any document requested is non-existent
+                case (null) {
+                  if (text == el_id) {
+                    throw Error.reject("User doesnt exist!");
+                  };
+                };
+                case (?doc) {
+                  if (text == el_id) {
+                    if (msg.caller != doc.owner) {
+                      throw Error.reject("Caller is not the owner of the element.");
+                    };
+                    let docInput : (Text, Text, { updated_at : ?Nat64 }) = ("user", el_id, { updated_at = ?doc.updated_at });
+                    deleteDocsInput.add(docInput);
+                  };
+                  if (text == "REP_" # el_id) {
+                    let docInput : (Text, Text, { updated_at : ?Nat64 }) = ("reputation", "REP_" # el_id, { updated_at = ?doc.updated_at });
+                    deleteDocsInput.add(docInput);
+                  };
+                  if (text == "REV_" # el_id) {
+                    let docInput : (Text, Text, { updated_at : ?Nat64 }) = ("users_revenue_counter", "REV_" # el_id, { updated_at = ?doc.updated_at });
+                    deleteDocsInput.add(docInput);
+                  };
+                  if (text == "INDEX_" # el_id) {
+                    let docInput : (Text, Text, { updated_at : ?Nat64 }) = ("user_index", "INDEX_" # el_id, { updated_at = ?doc.updated_at });
+                    deleteDocsInput.add(docInput);
+                  };
+                  if (text == "FOLL_" # el_id) {
+                    let docInput : (Text, Text, { updated_at : ?Nat64 }) = ("followers", "FOLL_" # el_id, { updated_at = ?doc.updated_at });
+                    deleteDocsInput.add(docInput);
+                  };
+                };
+              };
+            };
+          };
+          case (#err(error)) {
+            return error;
+          };
+        };
+        let result = await bridge.deleteManyJunoDocs(Buffer.toArray(deleteDocsInput));
+        if (result != "Success!") {
+          throw Error.reject("User couldnt be deleted: " # result);
+        };
+        "User deleted successfully";
+      };
+      case ("solution") {
+        // Documents to delete: solution_status, solution_approved, solution, index_search, followers
+        let docInput1 : (Text, Text) = ("solution", el_id);
+        let docInput2 : (Text, Text) = ("solution_status", "SOL_STAT_" # el_id);
+        let docInput4 : (Text, Text) = ("solution_approved", "SOL_APPR_" # el_id);
+        let docInput5 : (Text, Text) = ("index_search", "INDEX_" # el_id);
+        let docInput6 : (Text, Text) = ("followers", "FOLL_" # el_id);
+        var docs : [(Text, Text)] = [docInput1, docInput2, docInput4, docInput5, docInput6];
+        var deleteDocsInput : Buffer.Buffer<(Text, Text, { updated_at : ?Nat64 })> = Buffer.Buffer<(Text, Text, { updated_at : ?Nat64 })>(0);
+        let getDocResponse : T.GetManyDocsResult = await bridge.getManyJunoDocs(docs);
+        switch getDocResponse {
+          case (#ok(response)) {
+            for ((text, maybeDoc) in response.vals()) {
+              switch (maybeDoc) {
+                // We check if any document requested is non-existent
+                case (null) {
+                  if (text == el_id) {
+                    throw Error.reject("Solution doesnt exist!");
+                  };
+                };
+                case (?doc) {
+                  if (text == el_id) {
+                    if (msg.caller != doc.owner) {
+                      throw Error.reject("Caller is not the owner of the element.");
+                    };
+                    let docInput : (Text, Text, { updated_at : ?Nat64 }) = ("solution", el_id, { updated_at = ?doc.updated_at });
+                    deleteDocsInput.add(docInput);
+                  };
+                  if (text == "SOL_STAT_" # el_id) {
+                    let docInput : (Text, Text, { updated_at : ?Nat64 }) = ("solution_status", "SOL_PL_" # el_id, { updated_at = ?doc.updated_at });
+                    deleteDocsInput.add(docInput);
+                  };
+                  if (text == "SOL_APPR_" # el_id) {
+                    let docInput : (Text, Text, { updated_at : ?Nat64 }) = ("solution_approved", "SOL_APPR_" # el_id, { updated_at = ?doc.updated_at });
+                    deleteDocsInput.add(docInput);
+                  };
+                  if (text == "INDEX_" # el_id) {
+                    let docInput : (Text, Text, { updated_at : ?Nat64 }) = ("index_search", "INDEX_" # el_id, { updated_at = ?doc.updated_at });
+                    deleteDocsInput.add(docInput);
+                  };
+                  if (text == "FOLL_" # el_id) {
+                    let docInput : (Text, Text, { updated_at : ?Nat64 }) = ("followers", "FOLL_" # el_id, { updated_at = ?doc.updated_at });
+                    deleteDocsInput.add(docInput);
+                  };
+                };
+              };
+            };
+          };
+          case (#err(error)) {
+            return error;
+          };
+        };
+        let result = await bridge.deleteManyJunoDocs(Buffer.toArray(deleteDocsInput));
+        if (result != "Success!") {
+          throw Error.reject("Idea couldnt be deleted: " # result);
+        };
+        "Solution deleted successfully";
+      };
+      case ("feature") {
+        // Documents to delete: idea_revenue_counter, idea_feature_pledge, feature, index_search, followers
+        let docInput1 : (Text, Text) = ("feature", el_id);
+        let docInput3 : (Text, Text) = ("idea_feature_pledge", "PLG_FEA_" # el_id);
+        let docInput4 : (Text, Text) = ("idea_revenue_counter", "REV_FEA_" # el_id);
+        let docInput5 : (Text, Text) = ("index_search", "INDEX_" # el_id);
+        let docInput6 : (Text, Text) = ("followers", "FOLL_" # el_id);
+        var docs : [(Text, Text)] = [docInput1, docInput3, docInput4, docInput5, docInput6];
+        var deleteDocsInput : Buffer.Buffer<(Text, Text, { updated_at : ?Nat64 })> = Buffer.Buffer<(Text, Text, { updated_at : ?Nat64 })>(0);
+        let getDocResponse : T.GetManyDocsResult = await bridge.getManyJunoDocs(docs);
+        switch getDocResponse {
+          case (#ok(response)) {
+            for ((text, maybeDoc) in response.vals()) {
+              switch (maybeDoc) {
+                // We check if any document requested is non-existent
+                case (null) {
+                  if (text == el_id) {
+                    throw Error.reject("Element doesnt exist!");
+                  };
+                };
+                case (?doc) {
+                  if (text == el_id) {
+                    if (msg.caller != doc.owner) {
+                      throw Error.reject("Caller is not the owner of the element.");
+                    };
+                    let docInput : (Text, Text, { updated_at : ?Nat64 }) = ("feature", el_id, { updated_at = ?doc.updated_at });
+                    deleteDocsInput.add(docInput);
+                  };
+                  if (text == "REV_FEA_" # el_id) {
+                    let docInput : (Text, Text, { updated_at : ?Nat64 }) = ("idea_revenue_counter", "REV_FEA_" # el_id, { updated_at = ?doc.updated_at });
+                    deleteDocsInput.add(docInput);
+                  };
+                  if (text == "PL_FEA_" # el_id) {
+                    let docInput : (Text, Text, { updated_at : ?Nat64 }) = ("idea_feature_pledge", "PL_FEA_" # el_id, { updated_at = ?doc.updated_at });
+                    deleteDocsInput.add(docInput);
+                  };
+                  if (text == "INDEX_" # el_id) {
+                    let docInput : (Text, Text, { updated_at : ?Nat64 }) = ("index_search", "INDEX_" # el_id, { updated_at = ?doc.updated_at });
+                    deleteDocsInput.add(docInput);
+                  };
+                  if (text == "FOLL_" # el_id) {
+                    let docInput : (Text, Text, { updated_at : ?Nat64 }) = ("followers", "FOLL_" # el_id, { updated_at = ?doc.updated_at });
+                    deleteDocsInput.add(docInput);
+                  };
+                };
+              };
+            };
+          };
+          case (#err(error)) {
+            return error;
+          };
+        };
+        let result = await bridge.deleteManyJunoDocs(Buffer.toArray(deleteDocsInput));
+        if (result != "Success!") {
+          throw Error.reject("Idea couldnt be deleted: " # result);
+        };
+        "Feature deleted successfully";
+      };
+      case _ {
+        throw Error.reject("Incorrect 'what' parameter. Type: " # what # "doesnt exist!");
+      };
+    };
   };
 };
