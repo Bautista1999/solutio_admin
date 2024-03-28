@@ -20,6 +20,7 @@ import noti "./notifications";
 actor Admin {
   //For every function, we do a maximum of 3 intercanister calls: one getManyDocs, one setManyDocs, and one for the icrc ledger, if necessary.
   let escrowCanister : Principal = Principal.fromText("2uurk-ziaaa-aaaab-qacla-cai"); // we need to update this.
+  // ************** TESTING FUNCTIONS *****************
   public func fromCandidDescription(docKey : Text) : async {
     #ok : [T.User];
     #err : Text;
@@ -137,6 +138,7 @@ actor Admin {
   public shared (msg) func userPrincipal() : async Text {
     return Principal.toText(msg.caller);
   };
+  // ******* ***************************************** **********
 
   public shared (msg) func setDoc(collection : Text, key : Text, doc : T.DocInput) : async Text {
     Debug.print(Principal.toText(msg.caller));
