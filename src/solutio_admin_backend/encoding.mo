@@ -255,7 +255,7 @@ module {
             // imageURL : Text;
             // linkURL : Text;
             // sender : Text;
-            let UserKeys = ["title", "subtitle", "imageURL", "linkURL", "sender"];
+            let UserKeys = ["title", "subtitle", "imageURL", "linkURL", "sender", "description"];
             let blob : Blob = to_candid (data);
             let json_result = JSON.toText(blob, UserKeys, null);
             switch (json_result) {
