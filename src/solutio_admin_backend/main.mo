@@ -1518,7 +1518,10 @@ actor Admin {
   };
 
   // *******solutionReject********
-  // Brief Description: Processes the rejection of a solution within the Solutio platform. It updates the pledge status and resets the 'paid' value to 0 for the pledger, ensuring no funds are transferred for a rejected solution. Additionally, the function adjusts the total approved amount and user reputation as necessary.
+  // Brief Description: Processes the rejection of a solution within the Solutio platform.
+  //  It updates the pledge status and resets the 'paid' value to 0 for the pledger, ensuring no  funds
+  //  are transferred for a rejected solution. Additionally, the function adjusts the total approved
+  //  amount and user reputation as necessary.
   // Pre-Conditions:
   //  - The solution must exist and be associated with a specific idea.
   //  - The solution status must be checked to ensure it is in a state that allows for rejection.
@@ -2403,7 +2406,6 @@ actor Admin {
   //  - This function may trigger additional updates or notifications to creators, developers, and pledgers about the new total pledged amount through internal mechanisms or the `createNotification` function.
   // Official Documentation:
   //  - Detailed usage examples and the operational impact of the `pledgesCounter` function within the Solutio ecosystem are available at https://forum.solutio.one/-171/pledgescounter-documentation
-
   func pledgesCounter(el_id : Text, amount : Nat) : async Text {
     let docInput1 : (Text, Text) = ("pledges_active", el_id);
     let docInput2 : (Text, Text) = ("solutio_numbers", "pledges_counter");
@@ -3100,5 +3102,17 @@ actor Admin {
         throw Error.reject("Incorrect 'what' parameter. Type: " # what # "doesnt exist!");
       };
     };
+  };
+
+  public shared (msg) func createNotification() : async Text {
+    let notification : T.Notification = {
+      title = "Example of notification title";
+      subtitle = "Example of notification subtitle";
+      imageURL = "https://png.pngtree.com/png-vector/20190419/ourmid/pngtree-vector-notification-icon-png-image_958619.jpg";
+      linkURL = "https://xh6qb-uyaaa-aaaal-acuaq-cai.icp0.io/idea?id=2lRq1Zc3xdId1cWCfYW9Y";
+      sender = Principal.toText(msg.caller);
+      description = "Example of a description";
+    };
+    return await noti.createPersonalNotification(Principal.toText(msg.caller), Principal.toText(msg.caller), notification);
   };
 };
