@@ -16,6 +16,13 @@
         "dist/solutio_admin_frontend/"
       ],
       "type": "assets"
+    },
+    "solutio_escrow": {
+      "main": "src/solutio_escrow/main.mo",
+      "type": "motoko",
+      "dependencies": [
+        "solutio_admin_backend"
+      ]
     }
   },
   "defaults": {
