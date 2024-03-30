@@ -108,7 +108,7 @@ actor Escrow {
 
     };
 
-    public shared (msg) func storeFakeApproval_notAnonymous(project_id : Text) : async Text {
+    public shared (msg) func aaaa_storeFakeApproval_notAnonymous(project_id : Text) : async Text {
         let approval : T.Approval = {
             sender = Principal.fromText("ocpcu-jaaaa-aaaab-qab6q-cai");
             target = msg.caller;
@@ -123,7 +123,7 @@ actor Escrow {
         };
         return await storeApprovals(project_id, [approval, approval2]);
     };
-    public shared (msg) func storeFakeApproval(project_id : Text) : async Text {
+    public shared (msg) func aaaa_storeFakeApproval(project_id : Text) : async Text {
         let approval : T.Approval = {
             sender = msg.caller;
             target = Principal.fromText("ocpcu-jaaaa-aaaab-qab6q-cai");
@@ -138,8 +138,11 @@ actor Escrow {
         };
         return await storeApprovals(project_id, [approval, approval2]);
     };
-    public shared (msg) func getAllFakeApprovals(project_id : Text) : async [T.Approval] {
+    public shared (msg) func aaaa_getAllFakeApprovals(project_id : Text) : async [T.Approval] {
         return await getApprovals(project_id);
+    };
+    public func aaa_claimFakeTokens(project_id : Text) : async Text {
+        return await claimTokens(project_id);
     };
     // ******* ***************************************** **********
 
