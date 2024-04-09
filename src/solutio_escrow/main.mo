@@ -1,5 +1,6 @@
 import T "./types";
 import bridge "./juno.bridge";
+import enc "./encoding";
 import Principal "mo:base/Principal";
 import Debug "mo:base/Debug";
 import Blob "mo:base/Blob";
@@ -14,11 +15,11 @@ import Trie "mo:base/Trie";
 import Hash "mo:base/Hash";
 import Array "mo:base/Array";
 import Iter "mo:base/Iter";
+import Float "mo:base/Float";
 import Source "mo:uuid/async/SourceV4";
 import UUID "mo:uuid/UUID";
 import Ledger "./icrc.bridge";
 import Prim "mo:⛔";
-import admin "canister:solutio_admin_backend";
 
 actor Escrow {
 
@@ -31,6 +32,7 @@ actor Escrow {
     stable var projects : Trie.Trie<Text, [Text]> = Trie.empty();
 
     stable var transactions_approvals : T.Project_Trie = Trie.empty();
+    stable var users_reputation : Trie.Trie<Text, T.Reputation> = Trie.empty();
 
     func key(text : Text) : T.Key {
         let hash = Text.hash(text);
@@ -50,7 +52,17 @@ actor Escrow {
     // ******* TESTING FUNCTIONS **********
 
     let user : Principal = Principal.fromText("ocpcu-jaaaa-aaaab-qab6q-cai");
-    public shared (msg) func aaaa_storeFakeTransactions(status : Text) : async Text {
+    public shared (msg) func aaa_setReputation(paid : Nat, promised : Nat) : async Text {
+        let trans1 = updateReputation(msg.caller, paid, promised);
+        let trans2 = updateReputation(user, paid, promised);
+        return "Success";
+    };
+    public shared (msg) func aaaa_getFakeReputation() : async [?T.Reputation] {
+        let rep1 : ?T.Reputation = await getReputation(msg.caller);
+        let rep2 : ?T.Reputation = await getReputation(user);
+        return [rep1, rep2];
+    };
+    public shared (msg) func storeFakeTransactions(status : Text) : async Text {
         let transaction_id : Text = await generate_random_uuid();
         // sender : Principal;
         // target : Principal;
@@ -108,7 +120,7 @@ actor Escrow {
 
     };
 
-    public shared (msg) func aaaa_storeFakeApproval_notAnonymous(project_id : Text) : async Text {
+    public shared (msg) func storeFakeApproval_notAnonymous(project_id : Text) : async Text {
         let approval : T.Approval = {
             sender = Principal.fromText("ocpcu-jaaaa-aaaab-qab6q-cai");
             target = msg.caller;
@@ -123,26 +135,64 @@ actor Escrow {
         };
         return await storeApprovals(project_id, [approval, approval2]);
     };
-    public shared (msg) func aaaa_storeFakeApproval(project_id : Text) : async Text {
-        let approval : T.Approval = {
-            sender = msg.caller;
-            target = Principal.fromText("ocpcu-jaaaa-aaaab-qab6q-cai");
-            amount = 0;
-            approval_transaction_number = 0;
-        };
-        let approval2 : T.Approval = {
-            sender = msg.caller;
-            target = Principal.fromText("ocpcu-jaaaa-aaaab-qab6q-cai");
-            amount = 0;
-            approval_transaction_number = 0;
-        };
-        return await storeApprovals(project_id, [approval, approval2]);
+    public shared (msg) func storeFakeApproval(project_id : Text) : async Text {
+        let approval : [T.Approval] = [
+            {
+                sender = msg.caller;
+                target = Principal.fromText("ocpcu-jaaaa-aaaab-qab6q-cai");
+                amount = 0;
+                approval_transaction_number = 0;
+            },
+            {
+                sender = msg.caller;
+                target = Principal.fromText("ocpcu-jaaaa-aaaab-qab6q-cai");
+                amount = 0;
+                approval_transaction_number = 0;
+            },
+            {
+                sender = msg.caller;
+                target = Principal.fromText("ocpcu-jaaaa-aaaab-qab6q-cai");
+                amount = 0;
+                approval_transaction_number = 0;
+            },
+            {
+                sender = msg.caller;
+                target = Principal.fromText("ocpcu-jaaaa-aaaab-qab6q-cai");
+                amount = 0;
+                approval_transaction_number = 0;
+            },
+            {
+                sender = msg.caller;
+                target = Principal.fromText("ocpcu-jaaaa-aaaab-qab6q-cai");
+                amount = 0;
+                approval_transaction_number = 0;
+            },
+            {
+                sender = msg.caller;
+                target = Principal.fromText("ocpcu-jaaaa-aaaab-qab6q-cai");
+                amount = 0;
+                approval_transaction_number = 0;
+            },
+            {
+                sender = msg.caller;
+                target = Principal.fromText("ocpcu-jaaaa-aaaab-qab6q-cai");
+                amount = 0;
+                approval_transaction_number = 0;
+            },
+            {
+                sender = msg.caller;
+                target = Principal.fromText("ocpcu-jaaaa-aaaab-qab6q-cai");
+                amount = 0;
+                approval_transaction_number = 0;
+            },
+        ];
+        return await storeApprovals(project_id, approval);
     };
-    public shared (msg) func aaaa_getAllFakeApprovals(project_id : Text) : async [T.Approval] {
+    public shared (msg) func getAllFakeApprovals(project_id : Text) : async [T.Approval] {
         return await getApprovals(project_id);
     };
-    public func aaa_claimFakeTokens(project_id : Text) : async Text {
-        return await claimTokens(project_id);
+    public func claimFakeTokens2(project_id : Text) : async Text {
+        return await claimTokens_2(project_id);
     };
     // ******* ***************************************** **********
 
@@ -286,7 +336,7 @@ actor Escrow {
     //  - Utilized by project management interfaces to display transaction history, financial tracking systems for reporting and analytics, and by the escrow canister to reconcile project financials.
     // Official Documentation:
     //  - Detailed guidelines and examples for using this function to query project transactions can be found at [Solutio's Project Transaction Query Documentation](https://forum.solutio.one/-189/gettransactionsbyproject-documentation).
-    public func getTransactionsByProject(project : Text) : async ?[T.Transaction] {
+    public func aaaaa_getTransactionsByProject(project : Text) : async ?[T.Transaction] {
         let project_key = { hash = Text.hash(project); key = project };
         let project_transactions_ids = switch (Trie.get<Text, [Text]>(projects, project_key, Text.equal)) {
             case (null) { [] };
@@ -518,6 +568,7 @@ actor Escrow {
                 subaccount = null;
             };
             let current = Prim.time();
+
             let result1 = await Ledger.icrc.icrc2_transfer_from({
                 to = to_account;
                 spender_subaccount = null;
@@ -530,7 +581,6 @@ actor Escrow {
             });
             switch (result1) {
                 case (#Ok(result)) {
-                    // sender : Principal, target : Principal, transaction : T.Transaction, project_id : Text
                     let transaction : T.Transaction = {
                         sender = approval.sender;
                         target = approval.target;
@@ -607,6 +657,233 @@ actor Escrow {
         return "Success";
     };
 
+    func claimTokens_2(project_id : Text) : async Text {
+        let approvals : [T.Approval] = switch (Trie.get<Text, [T.Approval]>(transactions_approvals, key(project_id), Text.equal)) {
+            case (null) {
+                throw Error.reject("Project id doesnt have approvals!");
+            };
+            case (?value) { value };
+        };
+        var transactions : [(T.Transaction, async Ledger.Result_2)] = [];
+        var count = 0;
+        // sender : Principal, target : Principal, transaction : T.Transaction, project_id : Text
+        for (approval in approvals.vals()) {
+            let to_account : Ledger.Account = {
+                owner = approval.target;
+                subaccount = null;
+            };
+            let from_account : Ledger.Account = {
+                owner = approval.sender;
+                subaccount = null;
+            };
+            let current = Prim.time();
+            if (count == 20) {
+                count := 0;
+                let result1 = await Ledger.icrc.icrc2_transfer_from({
+                    to = to_account;
+                    spender_subaccount = null;
+                    amount = approval.amount;
+                    from = from_account;
+                    from_subaccount = null;
+                    created_at_time = ?current;
+                    fee = null;
+                    memo = null;
+                });
+                let trans : T.Transaction = {
+                    amount = approval.amount;
+                    created_at = current;
+                    message = "";
+                    project_id = project_id;
+                    sender = approval.sender;
+                    target = approval.target;
+                    status = "On hold";
+                    transaction_number = ?0;
+                };
+                //transactions := Array.append(transactions, [(trans, result1)]);
+                switch (result1) {
+                    case (#Ok(result)) {
+                        let trans : T.Transaction = {
+                            sender = approval.sender;
+                            target = approval.target;
+                            amount = approval.amount;
+                            transaction_number = ?result;
+                            status = "Success";
+                            message = "This transaction was successful";
+                            project_id = project_id;
+                            created_at = current;
+                        };
+                        let storeTr : Text = await storeTransaction(approval.sender, approval.target, trans, project_id);
+                    };
+                    case (#Err(result)) {
+                        switch (result) {
+                            // case (#InsufficientAllowance { allowance : Nat }) {
+                            //     let result_again = await Ledger.icrc.icrc2_transfer_from({
+                            //         to = to_account;
+                            //         spender_subaccount = null;
+                            //         amount = allowance;
+                            //         from = from_account;
+                            //         from_subaccount = null;
+                            //         created_at_time = ?current;
+                            //         fee = null;
+                            //         memo = null;
+                            //     });
+                            //     switch (result_again) {
+                            //         case (#Ok(result_again)) {
+                            //             // sender : Principal, target : Principal, transaction : T.Transaction, project_id : Text
+                            //             let transaction : T.Transaction = {
+                            //                 sender = approval.sender;
+                            //                 target = approval.target;
+                            //                 amount = allowance;
+                            //                 transaction_number = ?result_again;
+                            //                 status = "Success";
+                            //                 message = "This transaction was successful";
+                            //                 project_id = project_id;
+                            //                 created_at = current;
+                            //             };
+                            //             let storeTr : Text = await storeTransaction(approval.sender, approval.target, transaction, project_id);
+                            //         };
+                            //         case (#Err(result_again)) {
+                            //             let transaction : T.Transaction = {
+                            //                 sender = approval.sender;
+                            //                 target = approval.target;
+                            //                 amount = allowance;
+                            //                 transaction_number = null;
+                            //                 status = "Success";
+                            //                 message = "Error: This transaction has failed: " # transferErrorMessage(result_again);
+                            //                 project_id = project_id;
+                            //                 created_at = current;
+                            //             };
+                            //             let storeTr : Text = await storeTransaction(approval.sender, approval.target, transaction, project_id);
+                            //         };
+                            //     };
+                            // };
+                            case (_) {
+                                let trans : T.Transaction = {
+                                    sender = approval.sender;
+                                    target = approval.target;
+                                    amount = approval.amount;
+                                    transaction_number = null;
+                                    status = "Failure";
+                                    message = "Error: This transaction has failed: " # transferErrorMessage(result);
+                                    project_id = project_id;
+                                    created_at = current;
+                                };
+                                let storeTr : Text = await storeTransaction(approval.sender, approval.target, trans, project_id);
+                            };
+                        };
+                    };
+                };
+            } else {
+                let result1 = Ledger.icrc.icrc2_transfer_from({
+                    to = to_account;
+                    spender_subaccount = null;
+                    amount = approval.amount;
+                    from = from_account;
+                    from_subaccount = null;
+                    created_at_time = ?current;
+                    fee = null;
+                    memo = null;
+                });
+                let trans : T.Transaction = {
+                    amount = approval.amount;
+                    created_at = current;
+                    message = "";
+                    project_id = project_id;
+                    sender = approval.sender;
+                    target = approval.target;
+                    status = "On hold";
+                    transaction_number = ?0;
+                };
+                transactions := Array.append(transactions, [(trans, result1)]);
+                count := count +1;
+            };
+
+        };
+
+        for (transaction in transactions.vals()) {
+
+            let result1 = await transaction.1;
+            switch (result1) {
+                case (#Ok(result)) {
+                    let trans : T.Transaction = {
+                        sender = transaction.0.sender;
+                        target = transaction.0.target;
+                        amount = transaction.0.amount;
+                        transaction_number = ?result;
+                        status = "Success";
+                        message = "This transaction was successful";
+                        project_id = project_id;
+                        created_at = transaction.0.created_at;
+                    };
+                    let storeTr : Text = await storeTransaction(transaction.0.sender, transaction.0.target, transaction.0, project_id);
+                };
+                case (#Err(result)) {
+                    switch (result) {
+                        // case (#InsufficientAllowance { allowance : Nat }) {
+                        //     let result_again = await Ledger.icrc.icrc2_transfer_from({
+                        //         to = to_account;
+                        //         spender_subaccount = null;
+                        //         amount = allowance;
+                        //         from = from_account;
+                        //         from_subaccount = null;
+                        //         created_at_time = ?current;
+                        //         fee = null;
+                        //         memo = null;
+                        //     });
+                        //     switch (result_again) {
+                        //         case (#Ok(result_again)) {
+                        //             // sender : Principal, target : Principal, transaction : T.Transaction, project_id : Text
+                        //             let transaction : T.Transaction = {
+                        //                 sender = approval.sender;
+                        //                 target = approval.target;
+                        //                 amount = allowance;
+                        //                 transaction_number = ?result_again;
+                        //                 status = "Success";
+                        //                 message = "This transaction was successful";
+                        //                 project_id = project_id;
+                        //                 created_at = current;
+                        //             };
+                        //             let storeTr : Text = await storeTransaction(approval.sender, approval.target, transaction, project_id);
+                        //         };
+                        //         case (#Err(result_again)) {
+                        //             let transaction : T.Transaction = {
+                        //                 sender = approval.sender;
+                        //                 target = approval.target;
+                        //                 amount = allowance;
+                        //                 transaction_number = null;
+                        //                 status = "Success";
+                        //                 message = "Error: This transaction has failed: " # transferErrorMessage(result_again);
+                        //                 project_id = project_id;
+                        //                 created_at = current;
+                        //             };
+                        //             let storeTr : Text = await storeTransaction(approval.sender, approval.target, transaction, project_id);
+                        //         };
+                        //     };
+                        // };
+                        case (_) {
+                            let trans : T.Transaction = {
+                                sender = transaction.0.sender;
+                                target = transaction.0.target;
+                                amount = transaction.0.amount;
+                                transaction_number = null;
+                                status = "Failure";
+                                message = "Error: This transaction has failed: " # transferErrorMessage(result);
+                                project_id = project_id;
+                                created_at = transaction.0.created_at;
+                            };
+                            let storeTr : Text = await storeTransaction(transaction.0.sender, transaction.0.target, trans, project_id);
+                        };
+                    };
+                };
+            };
+
+            // Now you can use the result
+
+        };
+
+        return "Success";
+    };
+
     // *******solutionCompletion********
     // Brief Description: Marks a solution as completed after verifying ownership and delivery status. It also claims tokens for the solution, updates its status to "completed", and adjusts revenue and solution completion counters.
     // Pre-Conditions:
@@ -629,7 +906,7 @@ actor Escrow {
     // 5. Increment the solution completed counter.
     // Official Documentation:
     // - For more detailed guidelines and examples on using this function, please refer to https://forum.solutio.one/-187/solutioncompletion-documentation
-    public shared (msg) func solutionCompletion(sol_id : Text) : async Text {
+    public shared (msg) func solutionCompletion(sol_id : Text, idea_id : Text) : async Text {
         // 1- We have to check the owner of the project is the caller
         // 2- We have to check that the project was delivered
         // TODO : We also have to check that the waiting time has been passed already. The developer cant 'complete' the project right after delivering.
@@ -638,8 +915,10 @@ actor Escrow {
             throw Error.reject("Anonymous users submit solutions.");
         };
         let docInput1 : (Text, Text) = ("solution_status", "SOL_STAT_" # sol_id);
-        var docs : [(Text, Text)] = [docInput1];
+        let docInput2 : (Text, Text) = ("pledges_solution", "SOL_PL_" # idea_id);
+        var docs : [(Text, Text)] = [docInput1, docInput2];
         let getDocResponse : T.GetManyDocsResult = await bridge.getManyJunoDocs(docs);
+        var usersReputationInfo : [T.UserReputationInfo] = [];
         switch getDocResponse {
             case (#ok(response)) {
                 for ((text, maybeDoc) in response.vals()) {
@@ -671,6 +950,9 @@ actor Escrow {
                                     };
                                 };
                             };
+                            if (text == "SOL_PL_" # idea_id) {
+                                usersReputationInfo := await enc.pledgesSolutionDecode(doc.data);
+                            };
                         };
                     };
                 };
@@ -679,19 +961,20 @@ actor Escrow {
                 return error;
             };
         };
-        // 3- claimTokens()
         try {
             let claim_tokens = await claimTokens(sol_id);
         } catch (e) {
             throw Error.reject("Some error occurred why claiming the tokens: " # Error.message(e));
         };
         // 4- Update solution status to "completed"
-        let resultUpdate = await admin.updateSolutionStatus(sol_id, "completed");
+        let resultUpdate = await updateSolutionStatus(sol_id, "completed");
         // 5- Update revenue counter for idea and solution in Juno.
         let amount = await getProjectRevenue(sol_id);
-        let result_revenue_counter = await admin.ideaRevenueCounter(sol_id, amount);
+        let result_revenue_counter = await ideaRevenueCounter(sol_id, amount);
         // 6- Update solution_completed_counter + 1
-        let update_solution_counter = await admin.solutionsCompletedCounter();
+        let update_solution_counter = await solutionsCompletedCounter();
+        //7- Update user's reputation:
+        let updateRep_result = updateAllReputations(sol_id, usersReputationInfo);
         return "Success";
     };
 
@@ -773,7 +1056,7 @@ actor Escrow {
     // - For detailed usage and examples, visit: https://forum.solutio.one/-196/getprojectrevenue-documentation
     public func getProjectRevenue(project_id : Text) : async Nat {
         var amount : Nat = 0;
-        let transactions : [T.Transaction] = switch (await getTransactionsByProject(project_id)) {
+        let transactions : [T.Transaction] = switch (await aaaaa_getTransactionsByProject(project_id)) {
             case (null) {
                 [];
             };
@@ -883,6 +1166,423 @@ actor Escrow {
                 "Error: Insufficient funds, balance is: " # Nat.toText(balance);
             };
         };
+    };
+    public func getUserReputation(user : Principal) : async ?T.Reputation {
+        let user_text = Principal.toText(user);
+        let user_key = { hash = Text.hash(user_text); key = user_text };
+        return Trie.find<Text, T.Reputation>(users_reputation, user_key, Text.equal);
+    };
+
+    public func editReputation(user : Principal, paid : Nat, promised : Nat, pr_paid : Nat, pr_promised : Nat) : async Text {
+        let user_text = Principal.toText(user);
+        let user_key = { hash = Text.hash(user_text); key = user_text };
+        var am_paid : Nat = (paid);
+        var am_promised : Nat = switch (promised) {
+            case (0) {
+                am_paid;
+            };
+            case (_) {
+                promised;
+            };
+        };
+        let currentReputation : ?T.Reputation = Trie.find<Text, T.Reputation>(users_reputation, user_key, Text.equal);
+        var newReputation : T.Reputation = {
+            number = 0;
+            amount_paid = 0;
+            amount_promised = 0;
+        };
+        switch (currentReputation) {
+            case (null) {
+                throw Error.reject("The user doesnt have a reputation.");
+            };
+            case (?reputation) {
+                // let floatPaid = Nat.toInt(am_paid);
+                let total_paid : Int = reputation.amount_paid + am_paid - pr_paid;
+                if (total_paid < 0) {
+                    throw Error.reject("Reputation update failed: Total paid shouldnt be less than 0!");
+                };
+                let reputDebug : Nat = ((100 * (reputation.amount_paid + am_paid - pr_paid) / (reputation.amount_promised + am_promised - pr_promised)));
+                Debug.print(debug_show ("New reputation: ", reputDebug));
+
+                newReputation := {
+                    number = ((reputation.amount_paid + am_paid - pr_paid) * 100 / (reputation.amount_promised + am_promised - pr_promised));
+                    amount_paid = reputation.amount_paid + am_paid - pr_paid;
+                    amount_promised = reputation.amount_promised + am_promised - pr_promised;
+                };
+
+            };
+        };
+        let (updatedTrie, _) = Trie.replace<Text, T.Reputation>(users_reputation, user_key, Text.equal, ?newReputation);
+        users_reputation := updatedTrie;
+        return "Success";
+    };
+    public func updateReputation(user : Principal, paid : Nat, promised : Nat) : async Text {
+
+        let user_text = Principal.toText(user);
+        let user_key = { hash = Text.hash(user_text); key = user_text };
+        if (paid == 0 and promised == 0) {
+            return "Success";
+        };
+        var am_paid = paid;
+        var am_promised : Nat = switch (promised) {
+            case (0) {
+                paid;
+            };
+            case (_) {
+                promised;
+            };
+        };
+        let currentReputation : ?T.Reputation = Trie.find<Text, T.Reputation>(users_reputation, user_key, Text.equal);
+        var newReputation : T.Reputation = {
+            number = 0;
+            amount_paid = 0;
+            amount_promised = 0;
+        };
+        switch (currentReputation) {
+            case (null) {
+                newReputation := {
+                    number = (am_paid * 100 / am_promised);
+                    amount_paid = am_paid;
+                    amount_promised = am_promised;
+                };
+            };
+            case (?reputation) {
+                // let floatPaid = Nat.toInt(am_paid);
+                let reputDebug : Nat = ((100 * ((reputation.amount_paid) + am_paid) / (reputation.amount_promised + am_promised)));
+                Debug.print(debug_show ("New reputation: ", reputDebug));
+
+                newReputation := {
+                    number = ((reputation.amount_paid + am_paid) * 100 / (reputation.amount_promised + am_promised));
+                    amount_paid = reputation.amount_paid + am_paid;
+                    amount_promised = reputation.amount_promised + am_promised;
+                };
+
+            };
+        };
+        let (updatedTrie, _) = Trie.replace<Text, T.Reputation>(users_reputation, user_key, Text.equal, ?newReputation);
+        users_reputation := updatedTrie;
+        return "Success";
+
+    };
+    public func getReputation(user : Principal) : async ?T.Reputation {
+        let user_text = Principal.toText(user);
+        let user_key = { hash = Text.hash(user_text); key = user_text };
+        let reputation : ?T.Reputation = Trie.find<Text, T.Reputation>(users_reputation, user_key, Text.equal);
+        return reputation;
+    };
+
+    public func editApproval(project_id : Text, sender : Principal, newApprovals : [T.Approval]) : async Text {
+        removeApprovals_bySender(project_id, sender);
+        let project_approvals : [T.Approval] = switch (Trie.get<Text, [T.Approval]>(transactions_approvals, key(project_id), Text.equal)) {
+            case (null) { [] };
+            case (?value) { value };
+        };
+        let newList : [T.Approval] = Array.append(project_approvals, newApprovals);
+        transactions_approvals := Trie.put<Text, [T.Approval]>(transactions_approvals, key(project_id), Text.equal, newList).0;
+        return "Success";
+    };
+
+    func removeApprovals_bySender(project_id : Text, sender : Principal) {
+        let project_approvals : [T.Approval] = switch (Trie.get<Text, [T.Approval]>(transactions_approvals, key(project_id), Text.equal)) {
+            case (null) { [] };
+            case (?value) { value };
+        };
+        var newList : [T.Approval] = [];
+        for (approval in project_approvals.vals()) {
+            if (approval.sender != sender) {
+                newList := Array.append(newList, [approval]);
+            };
+        };
+        transactions_approvals := Trie.put<Text, [T.Approval]>(transactions_approvals, key(project_id), Text.equal, newList).0;
+    };
+
+    func updateAllReputations(project_id : Text, users : [T.UserReputationInfo]) : async Text {
+        for (user in users.vals()) {
+            if (user.amount_paid == 0) {
+                let result = await updateReputation(Principal.fromText(user.user), user.amount_pledged, user.amount_paid);
+            };
+        };
+        return "Success";
+    };
+
+    // *******solutionsCompletedCounter********
+    // Brief Description: Incrementally updates the count of completed solutions within the Solutio platform by adjusting the "solutions_completed_counter" each time a solution is marked as completed.
+    // Pre-Conditions:
+    //  - Although commented out, typically, only certain canisters (e.g., `escrowCanister`) or users with specific permissions would be allowed to call this function to ensure accurate tracking of completed solutions.
+    //  - The "solutions_completed_counter" document must exist within the "solutio_numbers" collection for updates.
+    // Post-Conditions:
+    //  - The count of completed solutions stored in the "solutions_completed_counter" document is incremented by one to reflect the completion of another solution.
+    // Validators:
+    //  - (If applicable) Verifies the caller's identity to ensure that only authorized entities can execute the function.
+    //  - Ensures the existence and proper formatting of the "solutions_completed_counter" document for reliable count updates.
+    // External Functions Using It:
+    //  - This function can be triggered after a solution is officially marked as completed, to keep an updated record of the platform's progress in addressing and solving user-generated ideas.
+    // Official Documentation:
+    //  - For a detailed explanation of how the `solutionsCompletedCounter` contributes to the transparency and achievement tracking on the Solutio platform, visit https://forum.solutio.one/-173/solutionscompletedcounter-documentation
+    public shared /*(msg)*/ func solutionsCompletedCounter() : async Text {
+        // if (msg.caller != escrowCanister) {
+        //   throw Error.reject "Caller not allowed to use this function";
+        // };
+        let amount = 1;
+        let docInput2 : (Text, Text) = ("solutio_numbers", "solutions_completed_counter");
+        var docs : [(Text, Text)] = [docInput2];
+        var updAt_Id : ?Nat64 = null;
+        var descriptionId : Text = Nat.toText(0);
+        var docBlob : ?Blob = null;
+        let getDocResponse : T.GetManyDocsResult = await bridge.getManyJunoDocs(docs);
+        switch getDocResponse {
+            case (#ok(response)) {
+                for ((text, maybeDoc) in response.vals()) {
+                    switch (maybeDoc) {
+                        // We check if any document requested is non-existent
+                        case (null) {
+
+                            if ((text == "solutions_completed_counter")) {
+                                throw Error.reject("solutions_completed_counter document doesnt exist!");
+                            };
+                        };
+                        case (?doc) {
+                            if (text == "solutions_completed_counter") {
+                                switch (doc.description) {
+                                    case (null) {
+                                        throw Error.reject("solutions_completed_counter document should have a description");
+                                    };
+
+                                    case (?description) {
+                                        updAt_Id := ?doc.updated_at;
+                                        docBlob := ?doc.data;
+                                        var totalId : Nat = switch (Nat.fromText(description)) {
+                                            case (null) {
+                                                throw Error.reject("solutions_completed_counter document description was not a Nat type");
+                                            };
+                                            case (?nat) {
+                                                nat;
+                                            };
+                                        };
+                                        totalId := totalId + amount;
+                                        descriptionId := Nat.toText(totalId);
+                                    };
+                                };
+                            };
+
+                        };
+                    };
+                };
+            };
+            case (#err(error)) {
+                throw Error.reject(error);
+            };
+        };
+        let blobInput : Blob = switch (docBlob) {
+            case (null) {
+                throw Error.reject("Data is null");
+            };
+            case (?blob) {
+                blob;
+            };
+        };
+        let docData : T.DocInput = {
+            updated_at = updAt_Id;
+            data = blobInput;
+            description = ?descriptionId;
+        };
+        let docInputSet3 : (Text, Text, T.DocInput) = ("solutio_numbers", "solutions_completed_counter", docData);
+        let updateData = await bridge.setManyJunoDocs([docInputSet3]);
+        if (Text.notEqual(updateData, "Success!")) {
+            throw Error.reject("Failed to update solutions_completed_counter number: " # updateData);
+        };
+        return "solutions_completed_counter modified successfully!";
+    };
+
+    // *******ideaRevenueCounter********
+    // Brief Description: Updates the revenue counter for a specific idea on the Solutio platform, reflecting new earnings from the idea.
+    // Pre-Conditions:
+    //  - Ideally designed to be called by authorized canisters or users (such as `escrowCanister`) to update revenue after certain transactions or approvals. (Commented out permission check)
+    //  - Requires the existence of an "idea_revenue_counter" document for the idea identified by `el_id`.
+    // Post-Conditions:
+    //  - Updates the total revenue for the specified idea by adding the new `amount` to the current total in the "idea_revenue_counter" document.
+    // Validators:
+    //  - Ensures the existence of the `el_id` for the idea whose revenue is being updated.
+    //  - Validates the presence of a description for readability and data for updating revenue calculations.
+    // External Functions Using It:
+    //  - This function might be invoked after an idea achieves certain milestones or receives payments, thus dynamically reflecting its financial success on the platform.
+    // Official Documentation:
+    //  - For a comprehensive explanation and examples of how `ideaRevenueCounter` supports financial tracking and showcases idea success, visit https://forum.solutio.one/-175/idearevenuecounter-documentation
+    public func /*(msg)*/ ideaRevenueCounter(el_id : Text, amount : Nat) : async Text {
+        // if (msg.caller != escrowCanister) {
+        //   throw Error.reject "Caller not allowed to use this function";
+        // };
+        let docInput1 : (Text, Text) = ("idea_revenue_counter", "REV_" # el_id);
+        var docs : [(Text, Text)] = [docInput1];
+        var updAt_Id : ?Nat64 = null;
+        var descriptionId : Text = "";
+        var docBlob : ?Blob = null;
+        let getDocResponse : T.GetManyDocsResult = await bridge.getManyJunoDocs(docs);
+        switch getDocResponse {
+            case (#ok(response)) {
+                for ((text, maybeDoc) in response.vals()) {
+                    switch (maybeDoc) {
+                        // We check if any document requested is non-existent
+                        case (null) {
+                            if ((text == el_id)) {
+                                throw Error.reject("idea_revenue_counter document of the element doesnt exist!");
+                            };
+                        };
+                        case (?doc) {
+                            if (text == "REV_" # el_id) {
+                                switch (doc.description) {
+                                    case (null) {
+                                        throw Error.reject("idea_revenue_counter document should have a description");
+                                    };
+
+                                    case (?description) {
+                                        updAt_Id := ?doc.updated_at;
+                                        docBlob := ?doc.data;
+                                        descriptionId := description;
+                                        var docBlobNotNull : Blob = switch (docBlob) {
+                                            case (null) {
+                                                throw Error.reject("idea_revenue_counter document should have data");
+                                            };
+                                            case (?blob) {
+                                                blob;
+                                            };
+                                        };
+                                        var totalRev : T.TotalRevenue = await enc.totalRevenueDecode(docBlobNotNull);
+                                        totalRev := {
+                                            total_revenue = totalRev.total_revenue + amount;
+                                        };
+                                        docBlob := ?(await enc.totalRevenueEncode(totalRev));
+
+                                    };
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+            case (#err(error)) {
+                throw Error.reject(error);
+            };
+        };
+        let blobInput : Blob = switch (docBlob) {
+            case (null) {
+                throw Error.reject("Data is null");
+            };
+            case (?blob) {
+                blob;
+            };
+        };
+        let docData : T.DocInput = {
+            updated_at = updAt_Id;
+            data = blobInput;
+            description = ?descriptionId;
+        };
+        let docInputSet3 : (Text, Text, T.DocInput) = ("idea_revenue_counter", "REV_" # el_id, docData);
+        let updatedData = await bridge.setManyJunoDocs([docInputSet3]);
+        if (Text.notEqual(updatedData, "Success!")) {
+            throw Error.reject("Failed to update idea " # el_id # " revenue number: " # updatedData);
+        };
+        return "Idea total revenue modified successfully!";
+    };
+
+    // ******* updateSolutionStatus() ********
+    // Brief Description: Changes the status of a solution, validating the ownership and current status beforehand.
+    // Pre-Conditions:
+    // - Caller must be authenticated and not anonymous.
+    // - sol_id must correspond to an existing solution whose status is neither "completed" nor "delivered".
+    // - Caller must be the owner of the solution.
+    // Post-Conditions:
+    // - Updates "solution_status" document for the specified solution, reflecting the new status.
+    // - Notifies followers or interested parties about the status update.
+    // Validators:
+    // - Checks for solution existence and ownership.
+    // - Verifies the solution is eligible for the status change.
+    // External Functions Using It:
+    // - Utilizes "setManyJunoDocs" to update the document and "createNotification" for sending notifications.
+    // Official Documentation:
+    // - For a detailed explanation and guidelines: https://forum.solutio.one/-176/updatesolutionstatus-documentation.
+    public shared (msg) func updateSolutionStatus(sol_id : Text, status : Text) : async Text {
+        let caller = msg.caller;
+        if (Principal.isAnonymous(caller)) {
+            throw Error.reject("Anonymous users submit solutions.");
+        };
+        let docInput1 : (Text, Text) = ("solution_status", "SOL_STAT_" # sol_id);
+        var docs : [(Text, Text)] = [docInput1];
+        var descriptionSol : Text = "status:" #status;
+        var solData : ?Blob = null;
+        var updAtPl_sol : ?Nat64 = null;
+
+        let getDocResponse : T.GetManyDocsResult = await bridge.getManyJunoDocs(docs);
+        switch getDocResponse {
+            case (#ok(response)) {
+                for ((text, maybeDoc) in response.vals()) {
+                    switch (maybeDoc) {
+                        // We check if any document requested is non-existent
+                        case (null) {
+                            if (text == sol_id) {
+                                throw Error.reject("Solution status document doesnt exist");
+                            };
+                        };
+                        case (?doc) {
+                            if (text == "SOL_STAT_" # sol_id) {
+                                switch (doc.description) {
+                                    case (null) {
+                                        throw Error.reject("Solution status document should have a description");
+                                    };
+                                    case (?description) {
+                                        updAtPl_sol := ?doc.updated_at;
+                                        // if (Text.contains(description, #text "delivered") or Text.contains(description, #text "completed")) {
+                                        //   throw Error.reject("Error: It was already delivered or completed.");
+                                        // };
+                                        solData := ?doc.data;
+                                        let text = description;
+                                        let callerText = Principal.toText(caller);
+                                        if (Text.contains(text, #text callerText) == false) {
+                                            throw Error.reject("Not owner of solution");
+                                        };
+                                        descriptionSol := "status:" # status # " , owner:" # callerText;
+                                    };
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+            case (#err(error)) {
+                return error;
+            };
+        };
+
+        let blobSolData : Blob = switch (solData) {
+            case (null) {
+                throw Error.reject("null data");
+            };
+            case (?data) {
+                data;
+            };
+        };
+        let statusDoc : T.DocInput = {
+            updated_at = updAtPl_sol;
+            data = blobSolData;
+            description = ?descriptionSol;
+        };
+        let docInputSet2 : (Text, Text, T.DocInput) = ("solution_status", "SOL_STAT_" # sol_id, statusDoc);
+        let docsInput = [docInputSet2];
+
+        let updateStatusResult = await bridge.setManyJunoDocs(docsInput);
+        if (Text.notEqual(updateStatusResult, "Success!")) {
+            throw Error.reject("Failed to change the status: " # updateStatusResult);
+        };
+
+        if (status == "completed") {
+            let updateSolutionsCompleted = await solutionsCompletedCounter();
+            if (Text.notEqual(updateSolutionsCompleted, "solutions_completed_counter modified successfully!")) {
+                throw Error.reject("Failed to update solutions completed number" # updateStatusResult);
+            };
+        };
+
+        return "Success";
+
     };
 
 };
