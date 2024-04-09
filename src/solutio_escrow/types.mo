@@ -14,10 +14,18 @@ module {
         project_id : Text;
         created_at : Nat64;
     };
+    public type Reputation = {
+        number : Nat;
+        amount_promised : Nat;
+        amount_paid : Nat;
+    };
     public type DocInput = {
         updated_at : ?Nat64;
         data : Blob;
         description : ?Text;
+    };
+    public type TotalRevenue = {
+        total_revenue : Nat;
     };
     public type Key = { key : Text; hash : Hash.Hash };
     public type TransactionKey = {
@@ -89,4 +97,13 @@ module {
         paginate : Paginate;
     });
     public type GetDocResponse = (DocResponse);
+    public type ReputationNumbersNat = {
+        amount_promised : Nat;
+        amount_paid : Nat;
+    };
+    public type UserReputationInfo = {
+        user : Text;
+        amount_pledged : Nat;
+        amount_paid : Nat;
+    };
 };
