@@ -19,10 +19,7 @@
     },
     "solutio_escrow": {
       "main": "src/solutio_escrow/main.mo",
-      "type": "motoko",
-      "dependencies": [
-        "solutio_admin_backend"
-      ]
+      "type": "motoko"
     }
   },
   "defaults": {
