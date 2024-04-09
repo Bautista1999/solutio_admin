@@ -4,10 +4,8 @@ import Principal "mo:base/Principal";
 import Debug "mo:base/Debug";
 import Blob "mo:base/Blob";
 import Error "mo:base/Error";
-import Time "mo:base/Time";
 import Nat64 "mo:base/Nat64";
 import Text "mo:base/Text";
-import Int "mo:base/Int";
 import Nat "mo:base/Nat";
 import Buffer "mo:base/Buffer";
 import Source "mo:uuid/async/SourceV4";
@@ -16,6 +14,8 @@ import icrc "./icrc.bridge";
 import val "./validate";
 import enc "./encoding";
 import noti "./notifications";
+import escrow "canister:solutio_escrow";
+//import admin "canister:solutio_admin_backend";
 
 actor Admin {
   //For every function, we do a maximum of 3 intercanister calls: one getManyDocs, one setManyDocs, and one for the icrc ledger, if necessary.
@@ -1452,6 +1452,7 @@ actor Admin {
     };
 
     let docInputSet3 : (Text, Text, T.DocInput) = ("reputation", "REP_" # Principal.toText(caller), reputationInput);
+    let updateReputation = escrow.updateReputation(msg.caller, Nat64.toNat(reputationInfo.amount_paid), Nat64.toNat(reputationInfo.amount_promised));
     let approveCounter : (Text, Text, T.DocInput) = await pledgeApprovedCounter(sol_id, amount, "increase");
     let docsInput = [docInputSet2, docInputSet3, approveCounter];
     let updateData = await bridge.setManyJunoDocs(docsInput);
@@ -1761,6 +1762,7 @@ actor Admin {
     };
 
     let docInputSet3 : (Text, Text, T.DocInput) = ("reputation", "REP_" # Principal.toText(caller), reputationInput);
+    let updateReputation = escrow.updateReputation(msg.caller, Nat64.toNat(0), Nat64.toNat(reputationInfo.amount_promised));
     let approveCounter : (Text, Text, T.DocInput) = await pledgeApprovedCounter(sol_id, Nat64.fromNat(previousPaidNumber), "decrease");
     let docsInput = [docInputSet2, docInputSet3, approveCounter];
     let updateData = await bridge.setManyJunoDocs(docsInput);
@@ -2052,6 +2054,8 @@ actor Admin {
     };
 
     let docInputSet3 : (Text, Text, T.DocInput) = ("reputation", "REP_" # Principal.toText(caller), reputationInput);
+    let updateReputation = escrow.editReputation(msg.caller, Nat64.toNat(reputationInfo.amount_paid), Nat64.toNat(reputationInfo.amount_promised), previousPaidNumber, Nat64.toNat(reputationInfo.amount_promised));
+
     var approveCounter : (Text, Text, T.DocInput) = await pledgeApprovedCounter(sol_id, amount, "increase");
     approveCounter := await pledgeApprovedCounter(sol_id, Nat64.fromNat(previousPaidNumber), "decrease");
     let docsInput = [docInputSet2, docInputSet3, approveCounter];
