@@ -112,6 +112,46 @@ Contains Motoko source code for the backend logic of Solutio. This contains:
         
     12. generate_random_uuid()(): This function generates random strings to be used as keys for notifications documents within our Juno Satellite. There's no documentation for this one because its a simple function. Worth to note that uses an external library called [UUID](https://github.com/aviate-labs/uuid.mo/blob/main/README.md) from [aviate-labs](https://github.com/aviate-labs).
 
+- `src/solutio_escrow`
+Houses the Motoko source code responsible for the escrow logic within Solutio. This is where the financial interactions between users are managed, including transactions, approvals, and reputation updates. Key files and functions include:
+  - `main.mo`: The central hub for escrow operations. Here are the crucial functions of it:  
+    Apologies for the oversight. Let's format it correctly, including the additional functions you mentioned:
+
+### Solutio Escrow Canister README
+
+#### Project's Folder Walkthrough
+
+- `src/declarations`: Contains the generated declarations for interacting with the canisters.
+- `src/solutio_escrow`: Houses Motoko source code for the escrow logic within Solutio. Key files and functions include:
+
+  1. [claimTokens()](https://forum.solutio.one/-186/claimtokens-documentation): Executes token transfers from pledgers to builders for a completed project.
+  2. [solutionCompletion()](https://forum.solutio.one/-187/solutioncompletion-documentation): Marks a solution as completed, claims tokens, updates status, and adjusts counters.
+  3. [verifyAndStoreTransaction()](https://forum.solutio.one/-195/verifyandstoretransaction-documentation): Verifies a transaction's existence on the ledger and stores its details.
+  4. [getProjectRevenue()](https://forum.solutio.one/-196/getprojectrevenue-documentation): Calculates total revenue generated for a project by summing successful transactions.
+  5. [getUserRevenue()](https://forum.solutio.one/-197/getuserrevenue-documentation): Calculates total revenue accrued by a user from successful transactions where they are the target.
+  6. [getUserSpending()](https://forum.solutio.one/-198/getuserspending-documentation): Calculates the total spending of a user by summing all successful transactions initiated by them.
+  7. [getUserReputation()](https://forum.solutio.one/-201/getuserreputation-documentation): Retrieves the reputation score and details of a specified user.
+  8. [editReputation()](https://forum.solutio.one/-200/editreputation-documentation): Adjusts a user's reputation based on new and previous transaction figures.
+  9. [updateReputation()](https://forum.solutio.one/-199/updateReputation-documentation): Updates a user's reputation based on actual payments versus promised contributions.
+  10. [editApproval()](https://forum.solutio.one/-203/editapprovals-documentation): Modifies existing project approvals by a specific sender.
+  11. [removeApprovals_bySender()](https://forum.solutio.one/-204/removeapprovalsbysender-documentation): Removes all approvals initiated by a specified sender for a given project.
+  12. [updateAllReputations()](https://forum.solutio.one/-202/updateallreputations-documentation): Updates the reputation of multiple users based on their contributions to a completed project.
+  13. [solutionsCompletedCounter()](https://forum.solutio.one/-173/solutionscompletedcounter-documentation): Updates the count of completed solutions within the platform.
+  14. [ideaRevenueCounter()](https://forum.solutio.one/-175/idearevenuecounter-documentation): Updates the revenue counter for a specific idea on the platform.
+  15. [updateSolutionStatus()](https://forum.solutio.one/-176/updatesolutionstatus-documentation): Changes the status of a solution within the platform.
+  16. [storeTransaction()](https://forum.solutio.one/-183/storetransaction-documentation): Registers a new transaction within the escrow system.
+  17. [getTransactionsBySender()](https://forum.solutio.one/-184/gettransactionsbysender-documentation): Retrieves a list of transactions initiated by a specific sender.
+  18. [getTransactionsByTarget()](https://forum.solutio.one/-188/gettransactionsbytarget-documentation): Retrieves a list of transactions where the specified principal is the target.
+  19. [getTransactionsByProject()](https://forum.solutio.one/-189/gettransactionsbyproject-documentation): Retrieves a list of transactions associated with a specific project.
+  20. [storeApprovals()](https://forum.solutio.one/-190/storeapprovals-documentation): Stores a list of user approvals for a specific project.
+  21. [getApprovals()](https://forum.solutio.one/-185/getapprovals-documentation): Retrieves all approval transactions associated with a specific project.
+  22. [getProjectsApprovals_bySender()](https://forum.solutio.one/-191/getprojectsapprovalsbysender-documentation): Retrieves approvals made by a specific sender for a particular project.
+  23. [getProjectsApprovals_byTarget()](https://forum.solutio.one/-192/getprojectsapprovalsbytarget-documentation): Retrieves approvals targeted towards a specific recipient within a project.
+  24. [getProjectApprovals_lowerThan()](https://forum.solutio.one/-193/getprojectapprovalslowerthan-documentation): Retrieves approvals for a given project with amounts less than or equal to a specified threshold.
+  25. [getProjectApprovals_majorThan()](https://forum.solutio.one/-194/getprojectapprovalsmajorthan-documentation): Retrieves approvals for a project with amounts greater than a specified threshold.
+
+This detailed breakdown
+
 ## Solutio's ecosystem interaction overview
 
 <img src="Canisters interaction .jpg" alt="Alt Text" width="500">
