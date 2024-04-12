@@ -4,10 +4,8 @@ import Principal "mo:base/Principal";
 import Debug "mo:base/Debug";
 import Blob "mo:base/Blob";
 import Error "mo:base/Error";
-import Time "mo:base/Time";
 import Nat64 "mo:base/Nat64";
 import Text "mo:base/Text";
-import Int "mo:base/Int";
 import Nat "mo:base/Nat";
 import Buffer "mo:base/Buffer";
 import Source "mo:uuid/async/SourceV4";
@@ -16,10 +14,13 @@ import icrc "./icrc.bridge";
 import val "./validate";
 import enc "./encoding";
 import noti "./notifications";
+import escrow "canister:solutio_escrow";
+//import admin "canister:solutio_admin_backend";
 
 actor Admin {
   //For every function, we do a maximum of 3 intercanister calls: one getManyDocs, one setManyDocs, and one for the icrc ledger, if necessary.
   let escrowCanister : Principal = Principal.fromText("2uurk-ziaaa-aaaab-qacla-cai"); // we need to update this.
+  // ************** TESTING FUNCTIONS *****************
   public func fromCandidDescription(docKey : Text) : async {
     #ok : [T.User];
     #err : Text;
@@ -137,6 +138,7 @@ actor Admin {
   public shared (msg) func userPrincipal() : async Text {
     return Principal.toText(msg.caller);
   };
+  // ******* ***************************************** **********
 
   public shared (msg) func setDoc(collection : Text, key : Text, doc : T.DocInput) : async Text {
     Debug.print(Principal.toText(msg.caller));
@@ -1450,6 +1452,7 @@ actor Admin {
     };
 
     let docInputSet3 : (Text, Text, T.DocInput) = ("reputation", "REP_" # Principal.toText(caller), reputationInput);
+    let updateReputation = escrow.updateReputation(msg.caller, Nat64.toNat(reputationInfo.amount_paid), Nat64.toNat(reputationInfo.amount_promised));
     let approveCounter : (Text, Text, T.DocInput) = await pledgeApprovedCounter(sol_id, amount, "increase");
     let docsInput = [docInputSet2, docInputSet3, approveCounter];
     let updateData = await bridge.setManyJunoDocs(docsInput);
@@ -1518,7 +1521,10 @@ actor Admin {
   };
 
   // *******solutionReject********
-  // Brief Description: Processes the rejection of a solution within the Solutio platform. It updates the pledge status and resets the 'paid' value to 0 for the pledger, ensuring no funds are transferred for a rejected solution. Additionally, the function adjusts the total approved amount and user reputation as necessary.
+  // Brief Description: Processes the rejection of a solution within the Solutio platform.
+  //  It updates the pledge status and resets the 'paid' value to 0 for the pledger, ensuring no  funds
+  //  are transferred for a rejected solution. Additionally, the function adjusts the total approved
+  //  amount and user reputation as necessary.
   // Pre-Conditions:
   //  - The solution must exist and be associated with a specific idea.
   //  - The solution status must be checked to ensure it is in a state that allows for rejection.
@@ -1756,6 +1762,7 @@ actor Admin {
     };
 
     let docInputSet3 : (Text, Text, T.DocInput) = ("reputation", "REP_" # Principal.toText(caller), reputationInput);
+    let updateReputation = escrow.updateReputation(msg.caller, Nat64.toNat(0), Nat64.toNat(reputationInfo.amount_promised));
     let approveCounter : (Text, Text, T.DocInput) = await pledgeApprovedCounter(sol_id, Nat64.fromNat(previousPaidNumber), "decrease");
     let docsInput = [docInputSet2, docInputSet3, approveCounter];
     let updateData = await bridge.setManyJunoDocs(docsInput);
@@ -2047,6 +2054,8 @@ actor Admin {
     };
 
     let docInputSet3 : (Text, Text, T.DocInput) = ("reputation", "REP_" # Principal.toText(caller), reputationInput);
+    let updateReputation = escrow.editReputation(msg.caller, Nat64.toNat(reputationInfo.amount_paid), Nat64.toNat(reputationInfo.amount_promised), previousPaidNumber, Nat64.toNat(reputationInfo.amount_promised));
+
     var approveCounter : (Text, Text, T.DocInput) = await pledgeApprovedCounter(sol_id, amount, "increase");
     approveCounter := await pledgeApprovedCounter(sol_id, Nat64.fromNat(previousPaidNumber), "decrease");
     let docsInput = [docInputSet2, docInputSet3, approveCounter];
@@ -2403,7 +2412,6 @@ actor Admin {
   //  - This function may trigger additional updates or notifications to creators, developers, and pledgers about the new total pledged amount through internal mechanisms or the `createNotification` function.
   // Official Documentation:
   //  - Detailed usage examples and the operational impact of the `pledgesCounter` function within the Solutio ecosystem are available at https://forum.solutio.one/-171/pledgescounter-documentation
-
   func pledgesCounter(el_id : Text, amount : Nat) : async Text {
     let docInput1 : (Text, Text) = ("pledges_active", el_id);
     let docInput2 : (Text, Text) = ("solutio_numbers", "pledges_counter");
@@ -3100,5 +3108,17 @@ actor Admin {
         throw Error.reject("Incorrect 'what' parameter. Type: " # what # "doesnt exist!");
       };
     };
+  };
+
+  public shared (msg) func createNotification() : async Text {
+    let notification : T.Notification = {
+      title = "Example of notification title";
+      subtitle = "Example of notification subtitle";
+      imageURL = "https://png.pngtree.com/png-vector/20190419/ourmid/pngtree-vector-notification-icon-png-image_958619.jpg";
+      linkURL = "https://xh6qb-uyaaa-aaaal-acuaq-cai.icp0.io/idea?id=2lRq1Zc3xdId1cWCfYW9Y";
+      sender = Principal.toText(msg.caller);
+      description = "Example of a description";
+    };
+    return await noti.createPersonalNotification(Principal.toText(msg.caller), Principal.toText(msg.caller), notification);
   };
 };
