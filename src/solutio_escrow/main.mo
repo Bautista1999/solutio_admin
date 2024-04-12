@@ -57,9 +57,9 @@ actor Escrow {
         let trans2 = updateReputation(user, paid, promised);
         return "Success";
     };
-    public shared (msg) func aaaa_getFakeReputation() : async [?T.Reputation] {
-        let rep1 : ?T.Reputation = await getReputation(msg.caller);
-        let rep2 : ?T.Reputation = await getReputation(user);
+    public shared (msg) func aaaa_getFakeReputation() : async [T.Reputation] {
+        let rep1 : T.Reputation = await getUserReputation(msg.caller);
+        let rep2 : T.Reputation = await getUserReputation(user);
         return [rep1, rep2];
     };
     public shared (msg) func storeFakeTransactions(status : Text) : async Text {
@@ -91,15 +91,30 @@ actor Escrow {
 
     };
 
-    public shared (msg) func getFakeTransactionSender() : async ?[T.Transaction] {
+    public shared (msg) func getFakeTransactionSender() : async [T.Transaction] {
         return await getTransactionsBySender(msg.caller);
     };
 
-    public shared (msg) func getFakeTransactionSender_NotAnonymous() : async ?[T.Transaction] {
+    public shared (msg) func getFakeTransactionSender_NotAnonymous() : async [T.Transaction] {
         return await getTransactionsBySender(Principal.fromText("ocpcu-jaaaa-aaaab-qab6q-cai"));
     };
+    public func getAllowance(owner : Text, spender : Text) : async Nat {
+        let owner_account : Ledger.Account = {
+            owner = Principal.fromText(owner);
+            subaccount = null;
+        };
+        let spender_account : Ledger.Account = {
+            owner = Principal.fromText(spender);
+            subaccount = null;
+        };
+        let result = await Ledger.icrc.icrc2_allowance({
+            account = owner_account;
+            spender = spender_account;
+        });
+        return result.allowance;
+    };
 
-    public shared (msg) func getFakeTransactionTarget() : async ?[T.Transaction] {
+    public shared (msg) func getFakeTransactionTarget() : async [T.Transaction] {
         return await getTransactionsByTarget(msg.caller);
     };
 
@@ -266,7 +281,7 @@ actor Escrow {
     //  - This function could be called by user interfaces or other canisters seeking to audit, display, or process transactions based on their originator.
     // Official Documentation:
     //  - For guidelines on querying transaction data and other related functionalities, visit [Solutio's Transaction Query Documentation](https://forum.solutio.one/-184/gettransactionsbysender-documentation).
-    public func getTransactionsBySender(sender : Principal) : async ?[T.Transaction] {
+    public func getTransactionsBySender(sender : Principal) : async [T.Transaction] {
         let sender_key = { hash = Principal.hash(sender); key = sender };
         let sender_transactions_ids = switch (Trie.get<Principal, [Text]>(senders, sender_key, Principal.equal)) {
             case (null) { [] };
@@ -284,7 +299,7 @@ actor Escrow {
                 };
             };
         };
-        return ?sender_transactions;
+        return sender_transactions;
     };
 
     // *******getTransactionsByTarget********
@@ -301,7 +316,7 @@ actor Escrow {
     //  - This function can be used by any system component that requires insight into transactions directed towards a specific target, including auditing tools, user interfaces displaying transaction history, or automated systems that respond to incoming transactions.
     // Official Documentation:
     //  - For more information on querying transaction records and understanding their impact on system operations, refer to [Solutio's Transaction Query Documentation](https://forum.solutio.one/-188/gettransactionsbytarget-documentation).
-    public func getTransactionsByTarget(target : Principal) : async ?[T.Transaction] {
+    public func getTransactionsByTarget(target : Principal) : async [T.Transaction] {
         let target_key = { hash = Principal.hash(target); key = target };
         let target_transactions_ids = switch (Trie.get<Principal, [Text]>(targets, target_key, Principal.equal)) {
             case (null) { [] };
@@ -319,7 +334,7 @@ actor Escrow {
                 };
             };
         };
-        return ?target_transactions;
+        return target_transactions;
     };
 
     // *******getTransactionsByProject********
@@ -336,7 +351,7 @@ actor Escrow {
     //  - Utilized by project management interfaces to display transaction history, financial tracking systems for reporting and analytics, and by the escrow canister to reconcile project financials.
     // Official Documentation:
     //  - Detailed guidelines and examples for using this function to query project transactions can be found at [Solutio's Project Transaction Query Documentation](https://forum.solutio.one/-189/gettransactionsbyproject-documentation).
-    public func aaaaa_getTransactionsByProject(project : Text) : async ?[T.Transaction] {
+    public func getTransactionsByProject(project : Text) : async [T.Transaction] {
         let project_key = { hash = Text.hash(project); key = project };
         let project_transactions_ids = switch (Trie.get<Text, [Text]>(projects, project_key, Text.equal)) {
             case (null) { [] };
@@ -353,7 +368,7 @@ actor Escrow {
                 };
             };
         };
-        return ?project_transactions;
+        return project_transactions;
     };
 
     // *******storeApprovals********
@@ -682,23 +697,13 @@ actor Escrow {
                 let result1 = await Ledger.icrc.icrc2_transfer_from({
                     to = to_account;
                     spender_subaccount = null;
-                    amount = approval.amount;
+                    amount = approval.amount - 10000;
                     from = from_account;
                     from_subaccount = null;
                     created_at_time = ?current;
                     fee = null;
                     memo = null;
                 });
-                let trans : T.Transaction = {
-                    amount = approval.amount;
-                    created_at = current;
-                    message = "";
-                    project_id = project_id;
-                    sender = approval.sender;
-                    target = approval.target;
-                    status = "On hold";
-                    transaction_number = ?0;
-                };
                 //transactions := Array.append(transactions, [(trans, result1)]);
                 switch (result1) {
                     case (#Ok(result)) {
@@ -777,7 +782,7 @@ actor Escrow {
                 let result1 = Ledger.icrc.icrc2_transfer_from({
                     to = to_account;
                     spender_subaccount = null;
-                    amount = approval.amount;
+                    amount = approval.amount -10000;
                     from = from_account;
                     from_subaccount = null;
                     created_at_time = ?current;
@@ -815,7 +820,7 @@ actor Escrow {
                         project_id = project_id;
                         created_at = transaction.0.created_at;
                     };
-                    let storeTr : Text = await storeTransaction(transaction.0.sender, transaction.0.target, transaction.0, project_id);
+                    let storeTr : Text = await storeTransaction(transaction.0.sender, transaction.0.target, trans, project_id);
                 };
                 case (#Err(result)) {
                     switch (result) {
@@ -916,6 +921,7 @@ actor Escrow {
         };
         let docInput1 : (Text, Text) = ("solution_status", "SOL_STAT_" # sol_id);
         let docInput2 : (Text, Text) = ("pledges_solution", "SOL_PL_" # idea_id);
+        let docInput3 : (Text, Text) = ("solution", sol_id);
         var docs : [(Text, Text)] = [docInput1, docInput2];
         let getDocResponse : T.GetManyDocsResult = await bridge.getManyJunoDocs(docs);
         var usersReputationInfo : [T.UserReputationInfo] = [];
@@ -930,6 +936,11 @@ actor Escrow {
                             };
                         };
                         case (?doc) {
+                            if (text == sol_id) {
+                                if (doc.owner != msg.caller) {
+                                    throw Error.reject("Not owner of solution");
+                                };
+                            };
                             if (text == "SOL_STAT_" # sol_id) {
                                 switch (doc.description) {
                                     case (null) {
@@ -937,16 +948,13 @@ actor Escrow {
                                     };
                                     case (?description) {
                                         let text = description;
-                                        let callerText = Principal.toText(caller);
-                                        if (Text.contains(text, #text callerText) == false) {
-                                            throw Error.reject("Not owner of solution");
-                                        };
-                                        if (Text.contains(text, #text "delivered") == false) {
-                                            throw Error.reject("This project was not delivered.");
-                                        };
-                                        if (Text.contains(text, #text "completed")) {
-                                            throw Error.reject("This project has already been completed.");
-                                        };
+
+                                        // if (Text.contains(text, #text "completed")) {
+                                        //     throw Error.reject("This project has already been completed.");
+                                        // };
+                                        // if (Text.contains(text, #text "delivered") == false) {
+                                        //     throw Error.reject("This project was not delivered.");
+                                        // };
                                     };
                                 };
                             };
@@ -962,15 +970,15 @@ actor Escrow {
             };
         };
         try {
-            let claim_tokens = await claimTokens(sol_id);
+            let claim_tokens = await claimTokens_2(sol_id);
         } catch (e) {
             throw Error.reject("Some error occurred why claiming the tokens: " # Error.message(e));
         };
         // 4- Update solution status to "completed"
-        let resultUpdate = await updateSolutionStatus(sol_id, "completed");
+        //let resultUpdate = await updateSolutionStatus(sol_id, "completed");
         // 5- Update revenue counter for idea and solution in Juno.
         let amount = await getProjectRevenue(sol_id);
-        let result_revenue_counter = await ideaRevenueCounter(sol_id, amount);
+        let result_revenue_counter = await ideaRevenueCounter(idea_id, amount);
         // 6- Update solution_completed_counter + 1
         let update_solution_counter = await solutionsCompletedCounter();
         //7- Update user's reputation:
@@ -1056,14 +1064,7 @@ actor Escrow {
     // - For detailed usage and examples, visit: https://forum.solutio.one/-196/getprojectrevenue-documentation
     public func getProjectRevenue(project_id : Text) : async Nat {
         var amount : Nat = 0;
-        let transactions : [T.Transaction] = switch (await aaaaa_getTransactionsByProject(project_id)) {
-            case (null) {
-                [];
-            };
-            case (?transactions) {
-                transactions;
-            };
-        };
+        let transactions : [T.Transaction] = (await getTransactionsByProject(project_id));
         for (transaction in transactions.vals()) {
             if (transaction.status == "Success") {
                 amount := amount + transaction.amount;
@@ -1086,14 +1087,7 @@ actor Escrow {
     // - Detailed information and examples: https://forum.solutio.one/-197/getuserrevenue-documentation
     public func getUserRevenue(user : Principal) : async Nat {
         var amount : Nat = 0;
-        let transactions : [T.Transaction] = switch (await getTransactionsByTarget(user)) {
-            case (null) {
-                [];
-            };
-            case (?transactions) {
-                transactions;
-            };
-        };
+        let transactions : [T.Transaction] = (await getTransactionsByTarget(user));
         for (transaction in transactions.vals()) {
             if (transaction.status == "Success") {
                 amount := amount + transaction.amount;
@@ -1114,14 +1108,7 @@ actor Escrow {
     // - For more information and usage examples, visit https://forum.solutio.one/-198/getuserspending-documentation
     public func getUserSpending(user : Principal) : async Nat {
         var amount : Nat = 0;
-        let transactions : [T.Transaction] = switch (await getTransactionsBySender(user)) {
-            case (null) {
-                [];
-            };
-            case (?transactions) {
-                transactions;
-            };
-        };
+        let transactions : [T.Transaction] = (await getTransactionsBySender(user));
         for (transaction in transactions.vals()) {
             if (transaction.status == "Success") {
                 amount := amount + transaction.amount;
@@ -1167,13 +1154,52 @@ actor Escrow {
             };
         };
     };
-    public func getUserReputation(user : Principal) : async ?T.Reputation {
+
+    // *******getUserReputation********
+    // Brief Description: Retrieves the reputation score and details of a specified user within the Solutio platform, reflecting their engagement and reliability based on historical transactions and pledges.
+    // Pre-Conditions:
+    // - The user's Principal ID must be valid and known to the platform.
+    // Inputs:
+    // - user (Principal): The principal ID of the user whose reputation is to be retrieved.
+    // Returns:
+    // - An optional reputation record (?T.Reputation) containing the user's reputation score, total amount paid, and total amount promised. Returns null if the user has no reputation record.
+    // Official Documentation:
+    // - For more detailed information, usage examples, and insights into the reputation system, visit https://forum.solutio.one/-201/getuserreputation-documentation
+    public func getUserReputation(user : Principal) : async T.Reputation {
         let user_text = Principal.toText(user);
         let user_key = { hash = Text.hash(user_text); key = user_text };
-        return Trie.find<Text, T.Reputation>(users_reputation, user_key, Text.equal);
+        let reput_search = Trie.find<Text, T.Reputation>(users_reputation, user_key, Text.equal);
+        let reputation : T.Reputation = switch (reput_search) {
+            case (null) {
+                return {
+                    amount_promised = 0;
+                    amount_paid = 0;
+                    number = 50;
+                };
+            };
+            case (?reput) {
+                reput;
+            };
+        };
     };
 
+    // *******editReputation********
+    // Brief Description: Adjusts a user's reputation based on new and previous transaction figures. It recalculates the user's reputation score, taking into account the latest paid and promised amounts alongside their previous figures.
+    // Pre-Conditions:
+    // - User must exist within the platform and have a previous reputation score.
+    // - New and previous transaction figures must be provided.
+    // Inputs:
+    // - user (Principal): The principal ID of the user whose reputation is being adjusted.
+    // - paid (Nat): The new total amount the user has paid.
+    // - promised (Nat): The new total amount the user has promised.
+    // - pr_paid (Nat): The previous total amount paid by the user.
+    // - pr_promised (Nat): The previous total amount promised by the user.
+    // Returns:
+    // - Success Message (Text): Confirmation of the successful reputation adjustment.
+    // Official Documentation:
+    // - For more detailed information and examples, visit https://forum.solutio.one/-200/editreputation-documentation
     public func editReputation(user : Principal, paid : Nat, promised : Nat, pr_paid : Nat, pr_promised : Nat) : async Text {
+        // pr_paid : Nat --> previous paid, pr_promised : Nat --> previous promised
         let user_text = Principal.toText(user);
         let user_key = { hash = Text.hash(user_text); key = user_text };
         var am_paid : Nat = (paid);
@@ -1216,6 +1242,19 @@ actor Escrow {
         users_reputation := updatedTrie;
         return "Success";
     };
+
+    // *******updateReputation********
+    // Brief Description: Updates a user's reputation based on the ratio of actual payments to promised contributions within Solutio. This function recalculates and updates the reputation score to reflect the user's reliability and engagement in funding projects.
+    // Pre-Conditions:
+    // - The user must have participated in funding at least one project (paid or promised contribution).
+    // Inputs:
+    // - user (Principal): The principal ID of the user whose reputation is being updated.
+    // - paid (Nat): The total amount the user has actually paid towards projects.
+    // - promised (Nat): The total amount the user has pledged to contribute towards projects.
+    // Returns:
+    // - A text confirmation of the reputation update process, typically "Success".
+    // Official Documentation:
+    // - For more information and usage examples, visit https://forum.solutio.one/-199/updateReputation-documentation
     public func updateReputation(user : Principal, paid : Nat, promised : Nat) : async Text {
 
         let user_text = Principal.toText(user);
@@ -1264,13 +1303,20 @@ actor Escrow {
         return "Success";
 
     };
-    public func getReputation(user : Principal) : async ?T.Reputation {
-        let user_text = Principal.toText(user);
-        let user_key = { hash = Text.hash(user_text); key = user_text };
-        let reputation : ?T.Reputation = Trie.find<Text, T.Reputation>(users_reputation, user_key, Text.equal);
-        return reputation;
-    };
 
+    // *******editApproval********
+    // Brief Description: Modifies existing project approvals by a specific sender, replacing them with a new set of approvals.
+    // Pre-Conditions:
+    // - The project for which approvals are being edited must exist within Solutio.
+    // - The sender must have previously approved funding for the project.
+    // Inputs:
+    // - project_id (Text): Identifier of the project.
+    // - sender (Principal): ID of the user editing their approvals.
+    // - newApprovals ([T.Approval]): New set of approvals to be applied.
+    // Returns:
+    // - Success message confirming the update of approvals.
+    // Official Documentation:
+    // - For more detailed information, visit https://forum.solutio.one/-203/editapprovals-documentation
     public func editApproval(project_id : Text, sender : Principal, newApprovals : [T.Approval]) : async Text {
         removeApprovals_bySender(project_id, sender);
         let project_approvals : [T.Approval] = switch (Trie.get<Text, [T.Approval]>(transactions_approvals, key(project_id), Text.equal)) {
@@ -1282,7 +1328,19 @@ actor Escrow {
         return "Success";
     };
 
-    func removeApprovals_bySender(project_id : Text, sender : Principal) {
+    // *******removeApprovals_bySender********
+    // Brief Description: Removes all approvals initiated by a specified sender for a given project.
+    // Pre-Conditions:
+    // - The project ID must be valid and exist within the Solutio ecosystem.
+    // - The sender must have previously made one or more approvals for the project.
+    // Inputs:
+    // - project_id (Text): The unique identifier of the project from which approvals are being removed.
+    // - sender (Principal): The principal ID of the sender whose approvals are to be removed.
+    // Returns:
+    // - Success Message (Text): Confirmation that the approvals initiated by the sender have been successfully removed.
+    // Official Documentation:
+    // - For more information and usage examples, visit https://forum.solutio.one/-204/removeapprovalsbysender-documentation
+    public func removeApprovals_bySender(project_id : Text, sender : Principal) {
         let project_approvals : [T.Approval] = switch (Trie.get<Text, [T.Approval]>(transactions_approvals, key(project_id), Text.equal)) {
             case (null) { [] };
             case (?value) { value };
@@ -1296,6 +1354,21 @@ actor Escrow {
         transactions_approvals := Trie.put<Text, [T.Approval]>(transactions_approvals, key(project_id), Text.equal, newList).0;
     };
 
+    // *******updateAllReputations********
+    // Brief Description: Updates the reputation of multiple users based on their contributions to a completed project. This function iterates through a list of users, updating each one's reputation in the context of the project specified by `project_id`.
+    // Pre-Conditions:
+    // - `project_id` must be a valid identifier of a completed project.
+    // - The `users` array must contain at least one `UserReputationInfo` record, detailing the user's principal ID, amount pledged, and amount paid towards the project.
+    // Inputs:
+    // - project_id (Text): The unique identifier of the project for which reputations are being updated.
+    // - users ([T.UserReputationInfo]): An array of records, each containing a user's principal ID, the amount they pledged, and the amount they paid.
+    // Post-Conditions:
+    // - Each user's reputation is recalculated to reflect their contribution to the project identified by `project_id`,
+    //  IF the user hasnt paid (amount_paid==0).
+    // Returns:
+    // - "Success" (Text): Indicates successful updating of reputations for all users listed.
+    // Official Documentation:
+    // - For more information and usage examples, refer to https://forum.solutio.one/-202/updateallreputations-documentation
     func updateAllReputations(project_id : Text, users : [T.UserReputationInfo]) : async Text {
         for (user in users.vals()) {
             if (user.amount_paid == 0) {
@@ -1373,14 +1446,7 @@ actor Escrow {
                 throw Error.reject(error);
             };
         };
-        let blobInput : Blob = switch (docBlob) {
-            case (null) {
-                throw Error.reject("Data is null");
-            };
-            case (?blob) {
-                blob;
-            };
-        };
+        let blobInput : Blob = Text.encodeUtf8("There is no data");
         let docData : T.DocInput = {
             updated_at = updAt_Id;
             data = blobInput;
@@ -1412,7 +1478,7 @@ actor Escrow {
         // if (msg.caller != escrowCanister) {
         //   throw Error.reject "Caller not allowed to use this function";
         // };
-        let docInput1 : (Text, Text) = ("idea_revenue_counter", "REV_" # el_id);
+        let docInput1 : (Text, Text) = ("idea_revenue_counter", "REV_IDEA_" # el_id);
         var docs : [(Text, Text)] = [docInput1];
         var updAt_Id : ?Nat64 = null;
         var descriptionId : Text = "";
@@ -1429,12 +1495,11 @@ actor Escrow {
                             };
                         };
                         case (?doc) {
-                            if (text == "REV_" # el_id) {
+                            if (text == "REV_IDEA_" # el_id) {
                                 switch (doc.description) {
                                     case (null) {
                                         throw Error.reject("idea_revenue_counter document should have a description");
                                     };
-
                                     case (?description) {
                                         updAt_Id := ?doc.updated_at;
                                         docBlob := ?doc.data;
@@ -1451,6 +1516,7 @@ actor Escrow {
                                         totalRev := {
                                             total_revenue = totalRev.total_revenue + amount;
                                         };
+                                        //throw Error.reject("This is the revenue: " # Nat.toText(totalRev.total_revenue));
                                         docBlob := ?(await enc.totalRevenueEncode(totalRev));
 
                                     };
@@ -1477,8 +1543,8 @@ actor Escrow {
             data = blobInput;
             description = ?descriptionId;
         };
-        let docInputSet3 : (Text, Text, T.DocInput) = ("idea_revenue_counter", "REV_" # el_id, docData);
-        let updatedData = await bridge.setManyJunoDocs([docInputSet3]);
+        let docInputSet3 : (Text, Text, T.DocInput) = ("idea_revenue_counter", "REV_IDEA_" # el_id, docData);
+        let updatedData = await bridge.setJunoDoc(docInputSet3);
         if (Text.notEqual(updatedData, "Success!")) {
             throw Error.reject("Failed to update idea " # el_id # " revenue number: " # updatedData);
         };
@@ -1537,9 +1603,9 @@ actor Escrow {
                                         solData := ?doc.data;
                                         let text = description;
                                         let callerText = Principal.toText(caller);
-                                        if (Text.contains(text, #text callerText) == false) {
-                                            throw Error.reject("Not owner of solution");
-                                        };
+                                        // if (Text.contains(text, #text callerText) == false) {
+                                        //     throw Error.reject("Not owner of solution");
+                                        // };
                                         descriptionSol := "status:" # status # " , owner:" # callerText;
                                     };
                                 };
