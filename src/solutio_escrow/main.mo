@@ -1422,7 +1422,7 @@ actor Escrow {
                                     };
 
                                     case (?description) {
-                                        updAt_Id := ?doc.updated_at;
+                                        updAt_Id := ?doc.version;
                                         docBlob := ?doc.data;
                                         var totalId : Nat = switch (Nat.fromText(description)) {
                                             case (null) {
@@ -1448,7 +1448,7 @@ actor Escrow {
         };
         let blobInput : Blob = Text.encodeUtf8("There is no data");
         let docData : T.DocInput = {
-            updated_at = updAt_Id;
+            version = updAt_Id;
             data = blobInput;
             description = ?descriptionId;
         };
@@ -1501,7 +1501,7 @@ actor Escrow {
                                         throw Error.reject("idea_revenue_counter document should have a description");
                                     };
                                     case (?description) {
-                                        updAt_Id := ?doc.updated_at;
+                                        updAt_Id := ?doc.version;
                                         docBlob := ?doc.data;
                                         descriptionId := description;
                                         var docBlobNotNull : Blob = switch (docBlob) {
@@ -1539,7 +1539,7 @@ actor Escrow {
             };
         };
         let docData : T.DocInput = {
-            updated_at = updAt_Id;
+            version = updAt_Id;
             data = blobInput;
             description = ?descriptionId;
         };
@@ -1596,7 +1596,7 @@ actor Escrow {
                                         throw Error.reject("Solution status document should have a description");
                                     };
                                     case (?description) {
-                                        updAtPl_sol := ?doc.updated_at;
+                                        updAtPl_sol := ?doc.version;
                                         // if (Text.contains(description, #text "delivered") or Text.contains(description, #text "completed")) {
                                         //   throw Error.reject("Error: It was already delivered or completed.");
                                         // };
@@ -1628,7 +1628,7 @@ actor Escrow {
             };
         };
         let statusDoc : T.DocInput = {
-            updated_at = updAtPl_sol;
+            version = updAtPl_sol;
             data = blobSolData;
             description = ?descriptionSol;
         };

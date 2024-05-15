@@ -14,8 +14,8 @@ module {
         set_many_docs : (T.SetManyDocsInput) -> async ();
         get_many_docs : (T.GetManyDocsInput) -> async T.GetManyDocsResponse;
         list_docs : (Text, T.ListDocsFilter) -> async T.ListDocsResponse;
-        del_doc : (Text, Text, { updated_at : ?Nat64 }) -> async ();
-        del_many_docs : [(Text, Text, { updated_at : ?Nat64 })] -> async ();
+        del_doc : (Text, Text, { version : ?Nat64 }) -> async ();
+        del_many_docs : [(Text, Text, { version : ?Nat64 })] -> async ();
     };
 
     // *******setJunoDoc********
@@ -122,23 +122,23 @@ module {
     };
 
     // *******updateJunoDocument********
-    // Brief description: Updates an existing document in Juno by ensuring it's the latest version using the updated_at timestamp.
+    // Brief description: Updates an existing document in Juno by ensuring it's the latest version using the version timestamp.
     // Pre-Conditions: Requires `collection` and `key` to identify the document; `docsInput` must include the new data and description.
     // Post-conditions: Returns "Success" if update is successful; "Document not Found" if the document doesn't exist.
-    // Validators: Checks for document existence and matches the updated_at timestamp for consistency.
+    // Validators: Checks for document existence and matches the version timestamp for consistency.
     // External functions using it: None currently.
     // Official Documentation: [updateJunoDoc Documentation](https://forum.solutio.one/-160/updatejunodoc-documentation)
     public func updateJunoDocument(collection : Text, key : Text, docsInput : T.DocInput) : async Text {
-        //This function first gets the updated_at number and then updates the doc with it.
+        //This function first gets the version number and then updates the doc with it.
         let doc : ?T.GetDocResponse = await juno.get_doc(collection, key);
         switch (doc) {
             case (null) {
                 return "Document not Found";
             };
             case (?doc) {
-                let updated_number = ?doc.updated_at;
+                let updated_number = ?doc.version;
                 let newDocInput : T.DocInput = {
-                    updated_at = updated_number;
+                    version = updated_number;
                     data = docsInput.data;
                     description = docsInput.description;
                 };
@@ -185,14 +185,14 @@ module {
                                     // do nothing
                                 };
                                 case (?docResponse) {
-                                    let updatedAt : Nat64 = docResponse.updated_at;
+                                    let updatedAt : Nat64 = docResponse.version;
                                     let updatedDocs = Array.map<T.CollectionKeyPair, T.CollectionKeyPair>(
                                         docs,
                                         func(doc) {
                                             var updatedDocInput : T.DocInput = doc.docInput;
                                             if (doc.key == textPart) {
                                                 updatedDocInput := {
-                                                    updated_at = ?updatedAt;
+                                                    version = ?updatedAt;
                                                     data = docResponse.data;
                                                     description = docResponse.description;
                                                 };
@@ -241,7 +241,7 @@ module {
 
     // *******deleteJunoDoc********
     // Brief description: Securely removes a document from a specified collection in Juno, with optional timestamp validation for version control.
-    // Pre-Conditions: Requires `collection` and `key` to identify the document; optional `updated_at` for version check.
+    // Pre-Conditions: Requires `collection` and `key` to identify the document; optional `version` for version check.
     // Post-conditions: Returns "Success" if the document is successfully deleted; "Document not Found" if it doesn't exist or has been updated.
     // Validators: Optional timestamp validation to ensure the document being deleted is the most recent version.
     // External functions using it: None currently.
@@ -253,9 +253,9 @@ module {
                 return "Document not Found";
             };
             case (?doc) {
-                let updated_number : ?Nat64 = ?doc.updated_at;
+                let updated_number : ?Nat64 = ?doc.version;
                 try {
-                    let result = await juno.del_doc(collection, key, { updated_at = updated_number });
+                    let result = await juno.del_doc(collection, key, { version = updated_number });
 
                 } catch (errore) {
                     let error = await handleErrors(errore);
@@ -268,13 +268,13 @@ module {
 
     // *******deleteManyJunoDocs********
     // Brief description: Atomically deletes multiple documents from Juno, ensuring all or none are deleted to maintain data integrity.
-    // Pre-Conditions: `docs` parameter must include collection, key, and optional `updated_at` for each document to validate its version.
+    // Pre-Conditions: `docs` parameter must include collection, key, and optional `version` for each document to validate its version.
     // Post-conditions: Returns "Success" if all specified documents are deleted successfully; returns an error message if the operation fails.
-    // Validators: Ensures atomic deletion by checking `updated_at` timestamps, when provided, for version control.
+    // Validators: Ensures atomic deletion by checking `version` timestamps, when provided, for version control.
     // External functions using it: None currently.
     // Official Documentation: (https://forum.solutio.one/-159/deletemanyjunodocs-documentation)
     //TODO: Probably works. But still, this function needs to be tested on deployment.
-    public func deleteManyJunoDocs(docs : [(Text, Text, { updated_at : ?Nat64 })]) : async Text {
+    public func deleteManyJunoDocs(docs : [(Text, Text, { version : ?Nat64 })]) : async Text {
         try {
             let result = await juno.del_many_docs(docs);
 

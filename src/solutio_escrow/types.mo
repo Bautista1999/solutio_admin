@@ -20,7 +20,7 @@ module {
         amount_paid : Nat;
     };
     public type DocInput = {
-        updated_at : ?Nat64;
+        version : ?Nat64;
         data : Blob;
         description : ?Text;
     };
@@ -47,7 +47,7 @@ module {
     public type GetDocManyResponse = {
         key : ?Text;
         document : ?{
-            updated_at : ?Nat64;
+            version : ?Nat64;
             owner : Principal;
             data : Blob;
             description : ?Text;
@@ -57,7 +57,7 @@ module {
     public type GetManyDocsResult = { #ok : GetManyDocsResponse; #err : Text };
     public type GetManyDocsResponse = [(Text, ?DocResponse)];
     public type DocResponse = {
-        updated_at : Nat64;
+        version : Nat64;
         owner : Principal;
         data : Blob;
         description : ?Text;
@@ -76,14 +76,14 @@ module {
     public type GetDocResult = { #ok : GetDocResponse; #err : Text };
     public type ListDocsResult = { #ok : ListDocsResponse; #err : Text };
 
-    public type DelDocInput = (Text, Text, { updated_at : Nat64 });
+    public type DelDocInput = (Text, Text, { version : Nat64 });
     public type CollectionKeyPair = {
         collection : Text;
         key : Text;
         docInput : DocInput;
     };
     public type Doc = {
-        updated_at : ?Nat64;
+        version : ?Nat64;
         owner : Principal;
         data : Blob;
         description : ?Text;
