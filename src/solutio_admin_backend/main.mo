@@ -15,7 +15,6 @@ import val "./validate";
 import enc "./encoding";
 import noti "./notifications";
 import escrow "canister:solutio_escrow";
-//import admin "canister:solutio_admin_backend";
 
 actor Admin {
   //For every function, we do a maximum of 3 intercanister calls: one getManyDocs, one setManyDocs, and one for the icrc ledger, if necessary.
