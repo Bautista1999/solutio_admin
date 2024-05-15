@@ -42,7 +42,7 @@ module {
         let noti_id : Text = await generate_random_uuid();
         let data : Blob = await enc.notificationEncode(notification);
         let doc : T.DocInput = {
-            updated_at = null;
+            version = null;
             data = data;
             description = ?target;
         };
@@ -70,7 +70,7 @@ module {
         let noti_id : Text = await generate_random_uuid();
         let data : Blob = await enc.notificationEncode(notification);
         let doc : T.DocInput = {
-            updated_at = null;
+            version = null;
             data = data;
             description = ?element_id;
         };
