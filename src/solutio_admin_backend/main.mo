@@ -87,7 +87,7 @@ actor Admin {
     };
   };
 
-  public func editPledgeTry(user : T.User, previousPledge : T.PledgeActive) : async [T.User] {
+  public func editPledgeTry(user : T.User, previousPledge : T.Pledge) : async [T.User] {
 
     let users : [T.User] = [
       { user = "juansito"; amount_pledged = 6420000000; amount_paid = 0 },
@@ -98,7 +98,7 @@ actor Admin {
     var userFound : Bool = false;
     for (thisUser in users.vals()) {
       if (thisUser.user == user.user) {
-        let amount : Nat = user.amount_pledged + thisUser.amount_pledged - Nat64.toNat(previousPledge.pledge);
+        let amount : Nat = user.amount_pledged + thisUser.amount_pledged - Nat64.toNat(previousPledge.amount);
         updatedUsers.add({
           user = user.user;
           amount_pledged = amount;
@@ -148,7 +148,11 @@ actor Admin {
     return await bridge.getJunoDoc(collection, key);
   };
 
-  public func setManyDocs(docs : T.SetManyDocsInput) : async Text {
+  public shared (msg) func setManyDocs(docs : T.SetManyDocsInput) : async Text {
+    if (Principal.isAnonymous(msg.caller)) {
+      throw Error.reject("Not signed in: Anonymous users cannot create documents.");
+
+    };
     return await bridge.setManyJunoDocs(docs);
   };
 
@@ -199,6 +203,9 @@ actor Admin {
   // Official Documentation:
   //  - A detailed description and usage examples can be found at : i cant make this link public LOL 😂💀
   public shared (msg) func pledgeCreate(doc_key : Text, idea_id : Text, feature_id : Text, amount : Nat64, accounta : Blob) : async Text {
+    if (amount == 0) {
+      throw Error.reject("You cant pledge 0");
+    };
     var userReputation = reputation;
     let caller = msg.caller;
     // Verify that the caller is not anonymous
@@ -254,7 +261,7 @@ actor Admin {
                 throw Error.reject("idea_feature_pledge idea document non-existent");
               };
               if (text == idea_id) {
-                throw Error.reject("Idea non-existent");
+                throw Error.reject("Idea non-existent. Idea: " # idea_id);
               };
             };
             case (?doc) {
@@ -274,7 +281,7 @@ actor Admin {
                 };
               };
               if (text == "SOL_PL_" # idea_id) {
-                updAtPl_Sol := ?doc.version;
+                updAtPl_Sol := doc.version;
                 descPl_Sol := doc.description;
                 try {
                   let data : T.UserPledgeListResult = await val.pledgesSolutionDecode(doc.data);
@@ -307,7 +314,7 @@ actor Admin {
               };
               if (text == "PLG_FEA_" # feature_id) {
                 // I have to convert the doc.data into readable data
-                updAtPl_fea := ?doc.version;
+                updAtPl_fea := doc.version;
                 descPl_fea := doc.description;
                 let data : T.TotalPledgingResult = await val.totalPledgesDecode(doc.data);
                 switch (data) {
@@ -321,7 +328,7 @@ actor Admin {
 
               };
               if (text == "PLG_IDEA_" # idea_id) {
-                updAtPl_id := ?doc.version;
+                updAtPl_id := doc.version;
                 descPl_id := doc.description;
                 let data : T.TotalPledgingResult = await val.totalPledgesDecode(doc.data);
                 switch (data) {
@@ -474,12 +481,11 @@ actor Admin {
       feature_id = feature_id;
       amount = amount;
       expected_amount = expectedAmount;
-      user = caller;
+      user = Principal.toText(caller);
     };
-    let pledgeEncoding = await enc.pledgeEncode({
-      pledge = amount;
-      expected = expectedAmount;
-    });
+    let pledgeEncoding = await enc.pledgeEncode(
+      pledge
+    );
     let amountBlob : Blob = switch (pledgeEncoding) {
       case (#err(error)) {
         throw Error.reject(error);
@@ -564,6 +570,9 @@ actor Admin {
     if (Principal.isAnonymous(caller)) {
       throw Error.reject("Anonymous users cannot create pledges.");
     };
+    if (amount == 0) {
+      throw Error.reject("You cant pledge 0");
+    };
     let docInput1 : (Text, Text) = ("idea", idea_id);
     let docInput2 : (Text, Text) = ("feature", feature_id);
     let docInput3 : (Text, Text) = ("reputation", "REP_" #Principal.toText(caller));
@@ -579,7 +588,7 @@ actor Admin {
       docs := [docInput1, docInput2, docInput3, docInput4, docInput5, docInput6, docInput7];
     };
     let getDocResponse : T.GetManyDocsResult = await bridge.getManyJunoDocs(docs);
-    var pledgeInfo : ?T.PledgeActive = null;
+    var pledgeInfo : ?T.Pledge = null;
     var userPledgeList : [T.User] = [];
     var totalPledgeFeatureInfo : ?T.TotalPledging = null;
     var totalPledgeIdeaInfo : ?T.TotalPledging = null;
@@ -628,18 +637,11 @@ actor Admin {
             };
             case (?doc) {
               if (text == pledge_key) {
-                updAtPl_pledge := ?doc.version;
+                updAtPl_pledge := doc.version;
                 descPl_pledge := doc.description;
                 try {
-                  let data : T.PledgeActiveResult = await enc.pledgeDataDecode(doc.data);
-                  switch (data) {
-                    case (#ok(response)) {
-                      pledgeInfo := ?response;
-                    };
-                    case (#err(error)) {
-                      throw Error.reject("Pledge information could not be parsed.");
-                    };
-                  };
+                  pledgeInfo := ?(await enc.pledgeDataDecode(doc.data));
+
                 } catch (error) {
                   throw Error.reject("Pledge data does not have information" # Error.message(error));
                 };
@@ -660,7 +662,7 @@ actor Admin {
                 };
               };
               if (text == "SOL_PL_" # idea_id) {
-                updAtPl_Sol := ?doc.version;
+                updAtPl_Sol := doc.version;
                 descPl_Sol := doc.description;
                 try {
                   let data : T.UserPledgeListResult = await val.pledgesSolutionDecode(doc.data);
@@ -691,7 +693,7 @@ actor Admin {
               };
               if (text == "PLG_FEA_" # feature_id) {
                 // I have to convert the doc.data into readable data
-                updAtPl_fea := ?doc.version;
+                updAtPl_fea := doc.version;
                 descPl_fea := doc.description;
                 let data : T.TotalPledgingResult = await val.totalPledgesDecode(doc.data);
                 switch (data) {
@@ -705,7 +707,7 @@ actor Admin {
 
               };
               if (text == "PLG_IDEA_" # idea_id) {
-                updAtPl_id := ?doc.version;
+                updAtPl_id := doc.version;
                 descPl_id := doc.description;
                 let data : T.TotalPledgingResult = await val.totalPledgesDecode(doc.data);
                 switch (data) {
@@ -752,7 +754,7 @@ actor Admin {
       amount_paid = 0;
     };
     //TODO: Update pledge info
-    var pledgeToEncode : T.PledgeActive = switch (pledgeInfo) {
+    var pledgeToEncode : T.Pledge = switch (pledgeInfo) {
       case (null) {
         throw Error.reject("The pledge information could not be decoded. Its null.");
       };
@@ -805,7 +807,7 @@ actor Admin {
         info;
       };
     };
-    let pledgeToAdd : T.PledgeActive = switch (pledgeInfo) {
+    let pledgeToAdd : T.Pledge = switch (pledgeInfo) {
       case (null) {
         throw Error.reject("");
       };
@@ -872,10 +874,7 @@ actor Admin {
     // ******************************
 
     // ******************************
-    pledgeToEncode := {
-      pledge = amount;
-      expected = expectedAmount;
-    };
+
     let pledgeBlob : Blob = switch (await enc.pledgeEncode(pledgeToEncode)) {
       case (#err(error)) {
         throw Error.reject("Updated pledge could not be encoded. Error: " # error);
@@ -978,7 +977,7 @@ actor Admin {
                     throw Error.reject("Solution status document should have a description");
                   };
                   case (?description) {
-                    updAtPl_sol := ?doc.version;
+                    updAtPl_sol := doc.version;
                     if (Text.contains(description, #text "delivered") or Text.contains(description, #text "completed")) {
                       throw Error.reject("Error: It was already delivered or completed.");
                     };
@@ -1096,7 +1095,7 @@ actor Admin {
                     throw Error.reject("Solution status document should have a description");
                   };
                   case (?description) {
-                    updAtPl_sol := ?doc.version;
+                    updAtPl_sol := doc.version;
                     // if (Text.contains(description, #text "delivered") or Text.contains(description, #text "completed")) {
                     //   throw Error.reject("Error: It was already delivered or completed.");
                     // };
@@ -1256,7 +1255,7 @@ actor Admin {
                     if (reputation == null) {
                       reputation := ?80;
                     };
-                    updAt_rep := ?doc.version;
+                    updAt_rep := doc.version;
                     let reputationNumbersResult = await enc.reputationNumbersDecode(doc.data);
                     reputationNumbers := switch (reputationNumbersResult) {
                       case (#ok(response)) {
@@ -1271,7 +1270,7 @@ actor Admin {
                 };
               };
               if (text == "SOL_PL_" # idea_id) {
-                updAtPl_sol := ?doc.version;
+                updAtPl_sol := doc.version;
                 descPl_Sol := doc.description;
                 try {
                   let data : T.UserPledgeListResult = await val.pledgesSolutionDecode(doc.data);
@@ -1597,7 +1596,7 @@ actor Admin {
                     if (reputation == null) {
                       reputation := ?80;
                     };
-                    updAt_rep := ?doc.version;
+                    updAt_rep := doc.version;
                     let reputationNumbersResult = await enc.reputationNumbersDecode(doc.data);
                     reputationNumbers := switch (reputationNumbersResult) {
                       case (#ok(response)) {
@@ -1612,7 +1611,7 @@ actor Admin {
                 };
               };
               if (text == "SOL_PL_" # idea_id) {
-                updAtPl_sol := ?doc.version;
+                updAtPl_sol := doc.version;
                 descPl_Sol := doc.description;
                 try {
                   let data : T.UserPledgeListResult = await val.pledgesSolutionDecode(doc.data);
@@ -1848,7 +1847,7 @@ actor Admin {
                     if (reputation == null) {
                       reputation := ?80;
                     };
-                    updAt_rep := ?doc.version;
+                    updAt_rep := doc.version;
                     let reputationNumbersResult = await enc.reputationNumbersDecode(doc.data);
                     reputationNumbers := switch (reputationNumbersResult) {
                       case (#ok(response)) {
@@ -1863,7 +1862,7 @@ actor Admin {
                 };
               };
               if (text == "SOL_PL_" # idea_id) {
-                updAtPl_sol := ?doc.version;
+                updAtPl_sol := doc.version;
                 descPl_Sol := doc.description;
                 try {
                   let data : T.UserPledgeListResult = await val.pledgesSolutionDecode(doc.data);
@@ -2120,7 +2119,7 @@ actor Admin {
                     throw Error.reject("solution_approved document should have a description");
                   };
                   case (?description) {
-                    updAtPl_sol := ?doc.version;
+                    updAtPl_sol := doc.version;
                     solData := ?doc.data;
                     var totalApproved : Nat64 = Nat64.fromNat(
                       switch (Nat.fromText(description)) {
@@ -2220,7 +2219,7 @@ actor Admin {
                     throw Error.reject("followers document should have a description");
                   };
                   case (?description) {
-                    updAt_foll := ?doc.version;
+                    updAt_foll := doc.version;
                     followersBlob := ?doc.data;
                     var totalFoll : Nat = switch (Nat.fromText(description)) {
                       case (null) {
@@ -2353,7 +2352,7 @@ actor Admin {
                     throw Error.reject("ideas_counter document should have a description");
                   };
                   case (?description) {
-                    updAt_Id := ?doc.version;
+                    updAt_Id := doc.version;
                     docBlob := ?doc.data;
                     var totalId : Nat = switch (Nat.fromText(description)) {
                       case (null) {
@@ -2440,7 +2439,7 @@ actor Admin {
                   };
 
                   case (?description) {
-                    updAt_Id := ?doc.version;
+                    updAt_Id := doc.version;
                     docBlob := ?doc.data;
                     var totalId : Nat = switch (Nat.fromText(description)) {
                       case (null) {
@@ -2535,7 +2534,7 @@ actor Admin {
                   };
 
                   case (?description) {
-                    updAt_Id := ?doc.version;
+                    updAt_Id := doc.version;
                     docBlob := ?doc.data;
                     var totalId : Nat = switch (Nat.fromText(description)) {
                       case (null) {
@@ -2624,7 +2623,7 @@ actor Admin {
                   };
 
                   case (?description) {
-                    updAt_Id := ?doc.version;
+                    updAt_Id := doc.version;
                     docBlob := ?doc.data;
                     var totalId : Nat = switch (Nat.fromText(description)) {
                       case (null) {
@@ -2711,7 +2710,7 @@ actor Admin {
                   };
 
                   case (?description) {
-                    updAt_Id := ?doc.version;
+                    updAt_Id := doc.version;
                     docBlob := ?doc.data;
                     descriptionId := description;
                     var docBlobNotNull : Blob = switch (docBlob) {
@@ -2802,7 +2801,7 @@ actor Admin {
                   };
 
                   case (?description) {
-                    updAt_Id := ?doc.version;
+                    updAt_Id := doc.version;
                     docBlob := ?doc.data;
                     descriptionId := description;
                     var docBlobNotNull : Blob = switch (docBlob) {
@@ -2896,23 +2895,23 @@ actor Admin {
                     if (msg.caller != doc.owner) {
                       throw Error.reject("Caller is not the owner of the element.");
                     };
-                    let docInput : (Text, Text, { version : ?Nat64 }) = ("idea", el_id, { version = ?doc.version });
+                    let docInput : (Text, Text, { version : ?Nat64 }) = ("idea", el_id, { version = doc.version });
                     deleteDocsInput.add(docInput);
                   };
                   if (text == "SOL_PL_" # el_id) {
-                    let docInput : (Text, Text, { version : ?Nat64 }) = ("pledges_solution", "SOL_PL_" # el_id, { version = ?doc.version });
+                    let docInput : (Text, Text, { version : ?Nat64 }) = ("pledges_solution", "SOL_PL_" # el_id, { version = doc.version });
                     deleteDocsInput.add(docInput);
                   };
                   if (text == "REV_IDEA_" # el_id) {
-                    let docInput : (Text, Text, { version : ?Nat64 }) = ("idea_revenue_counter", "REV_IDEA_" # el_id, { version = ?doc.version });
+                    let docInput : (Text, Text, { version : ?Nat64 }) = ("idea_revenue_counter", "REV_IDEA_" # el_id, { version = doc.version });
                     deleteDocsInput.add(docInput);
                   };
                   if (text == "INDEX_" # el_id) {
-                    let docInput : (Text, Text, { version : ?Nat64 }) = ("index_search", "INDEX_" # el_id, { version = ?doc.version });
+                    let docInput : (Text, Text, { version : ?Nat64 }) = ("index_search", "INDEX_" # el_id, { version = doc.version });
                     deleteDocsInput.add(docInput);
                   };
                   if (text == "FOLL_" # el_id) {
-                    let docInput : (Text, Text, { version : ?Nat64 }) = ("followers", "FOLL_" # el_id, { version = ?doc.version });
+                    let docInput : (Text, Text, { version : ?Nat64 }) = ("followers", "FOLL_" # el_id, { version = doc.version });
                     deleteDocsInput.add(docInput);
                   };
                 };
@@ -2954,23 +2953,23 @@ actor Admin {
                     if (msg.caller != doc.owner) {
                       throw Error.reject("Caller is not the owner of the element.");
                     };
-                    let docInput : (Text, Text, { version : ?Nat64 }) = ("user", el_id, { version = ?doc.version });
+                    let docInput : (Text, Text, { version : ?Nat64 }) = ("user", el_id, { version = doc.version });
                     deleteDocsInput.add(docInput);
                   };
                   if (text == "REP_" # el_id) {
-                    let docInput : (Text, Text, { version : ?Nat64 }) = ("reputation", "REP_" # el_id, { version = ?doc.version });
+                    let docInput : (Text, Text, { version : ?Nat64 }) = ("reputation", "REP_" # el_id, { version = doc.version });
                     deleteDocsInput.add(docInput);
                   };
                   if (text == "REV_" # el_id) {
-                    let docInput : (Text, Text, { version : ?Nat64 }) = ("users_revenue_counter", "REV_" # el_id, { version = ?doc.version });
+                    let docInput : (Text, Text, { version : ?Nat64 }) = ("users_revenue_counter", "REV_" # el_id, { version = doc.version });
                     deleteDocsInput.add(docInput);
                   };
                   if (text == "INDEX_" # el_id) {
-                    let docInput : (Text, Text, { version : ?Nat64 }) = ("user_index", "INDEX_" # el_id, { version = ?doc.version });
+                    let docInput : (Text, Text, { version : ?Nat64 }) = ("user_index", "INDEX_" # el_id, { version = doc.version });
                     deleteDocsInput.add(docInput);
                   };
                   if (text == "FOLL_" # el_id) {
-                    let docInput : (Text, Text, { version : ?Nat64 }) = ("followers", "FOLL_" # el_id, { version = ?doc.version });
+                    let docInput : (Text, Text, { version : ?Nat64 }) = ("followers", "FOLL_" # el_id, { version = doc.version });
                     deleteDocsInput.add(docInput);
                   };
                 };
@@ -3012,23 +3011,23 @@ actor Admin {
                     if (msg.caller != doc.owner) {
                       throw Error.reject("Caller is not the owner of the element.");
                     };
-                    let docInput : (Text, Text, { version : ?Nat64 }) = ("solution", el_id, { version = ?doc.version });
+                    let docInput : (Text, Text, { version : ?Nat64 }) = ("solution", el_id, { version = doc.version });
                     deleteDocsInput.add(docInput);
                   };
                   if (text == "SOL_STAT_" # el_id) {
-                    let docInput : (Text, Text, { version : ?Nat64 }) = ("solution_status", "SOL_PL_" # el_id, { version = ?doc.version });
+                    let docInput : (Text, Text, { version : ?Nat64 }) = ("solution_status", "SOL_PL_" # el_id, { version = doc.version });
                     deleteDocsInput.add(docInput);
                   };
                   if (text == "SOL_APPR_" # el_id) {
-                    let docInput : (Text, Text, { version : ?Nat64 }) = ("solution_approved", "SOL_APPR_" # el_id, { version = ?doc.version });
+                    let docInput : (Text, Text, { version : ?Nat64 }) = ("solution_approved", "SOL_APPR_" # el_id, { version = doc.version });
                     deleteDocsInput.add(docInput);
                   };
                   if (text == "INDEX_" # el_id) {
-                    let docInput : (Text, Text, { version : ?Nat64 }) = ("index_search", "INDEX_" # el_id, { version = ?doc.version });
+                    let docInput : (Text, Text, { version : ?Nat64 }) = ("index_search", "INDEX_" # el_id, { version = doc.version });
                     deleteDocsInput.add(docInput);
                   };
                   if (text == "FOLL_" # el_id) {
-                    let docInput : (Text, Text, { version : ?Nat64 }) = ("followers", "FOLL_" # el_id, { version = ?doc.version });
+                    let docInput : (Text, Text, { version : ?Nat64 }) = ("followers", "FOLL_" # el_id, { version = doc.version });
                     deleteDocsInput.add(docInput);
                   };
                 };
@@ -3070,23 +3069,23 @@ actor Admin {
                     if (msg.caller != doc.owner) {
                       throw Error.reject("Caller is not the owner of the element.");
                     };
-                    let docInput : (Text, Text, { version : ?Nat64 }) = ("feature", el_id, { version = ?doc.version });
+                    let docInput : (Text, Text, { version : ?Nat64 }) = ("feature", el_id, { version = doc.version });
                     deleteDocsInput.add(docInput);
                   };
                   if (text == "REV_FEA_" # el_id) {
-                    let docInput : (Text, Text, { version : ?Nat64 }) = ("idea_revenue_counter", "REV_FEA_" # el_id, { version = ?doc.version });
+                    let docInput : (Text, Text, { version : ?Nat64 }) = ("idea_revenue_counter", "REV_FEA_" # el_id, { version = doc.version });
                     deleteDocsInput.add(docInput);
                   };
                   if (text == "PL_FEA_" # el_id) {
-                    let docInput : (Text, Text, { version : ?Nat64 }) = ("idea_feature_pledge", "PL_FEA_" # el_id, { version = ?doc.version });
+                    let docInput : (Text, Text, { version : ?Nat64 }) = ("idea_feature_pledge", "PL_FEA_" # el_id, { version = doc.version });
                     deleteDocsInput.add(docInput);
                   };
                   if (text == "INDEX_" # el_id) {
-                    let docInput : (Text, Text, { version : ?Nat64 }) = ("index_search", "INDEX_" # el_id, { version = ?doc.version });
+                    let docInput : (Text, Text, { version : ?Nat64 }) = ("index_search", "INDEX_" # el_id, { version = doc.version });
                     deleteDocsInput.add(docInput);
                   };
                   if (text == "FOLL_" # el_id) {
-                    let docInput : (Text, Text, { version : ?Nat64 }) = ("followers", "FOLL_" # el_id, { version = ?doc.version });
+                    let docInput : (Text, Text, { version : ?Nat64 }) = ("followers", "FOLL_" # el_id, { version = doc.version });
                     deleteDocsInput.add(docInput);
                   };
                 };

@@ -238,10 +238,10 @@ module {
             expected = expected + pledgesInfo.expected;
         };
     };
-    public func totalPledgesUpdate_edit(amount : Nat64, expected : Nat64, pledgesInfo : T.TotalPledging, previousPledge : T.PledgeActive) : T.TotalPledging {
+    public func totalPledgesUpdate_edit(amount : Nat64, expected : Nat64, pledgesInfo : T.TotalPledging, previousPledge : T.Pledge) : T.TotalPledging {
         let updatedPledgeInfo : T.TotalPledging = {
-            pledges = amount + pledgesInfo.pledges - previousPledge.pledge;
-            expected = expected + pledgesInfo.expected - previousPledge.expected;
+            pledges = amount + pledgesInfo.pledges - previousPledge.amount;
+            expected = expected + pledgesInfo.expected - previousPledge.expected_amount;
         };
     };
     public func totalPledgesEncode(data : T.TotalPledgingNat) : async {
