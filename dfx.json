@@ -2,20 +2,10 @@
   "canisters": {
     "solutio_admin_backend": {
       "main": "src/solutio_admin_backend/main.mo",
-      "type": "motoko"
-    },
-    "solutio_admin_frontend": {
+      "type": "motoko",
       "dependencies": [
-        "solutio_admin_backend"
-      ],
-      "frontend": {
-        "entrypoint": "src/solutio_admin_frontend/src/index.html"
-      },
-      "source": [
-        "src/solutio_admin_frontend/assets",
-        "dist/solutio_admin_frontend/"
-      ],
-      "type": "assets"
+        "solutio_escrow"
+      ]
     },
     "solutio_escrow": {
       "main": "src/solutio_escrow/main.mo",

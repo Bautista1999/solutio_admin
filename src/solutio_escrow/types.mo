@@ -13,6 +13,7 @@ module {
         message : Text;
         project_id : Text;
         created_at : Nat64;
+        trans_type : Text;
     };
     public type Reputation = {
         number : Nat;

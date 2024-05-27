@@ -81,6 +81,7 @@ actor Escrow {
             message = "The result of the transaction was: " # status;
             project_id = transaction_id;
             created_at = 1_0000_0000;
+            trans_type = "transfer";
         };
         let array_example = [1, 2, 3, 4, 5, 6];
         for (num in array_example.vals()) {
@@ -130,6 +131,7 @@ actor Escrow {
             message = "The result of the transaction was: " # status;
             project_id = transaction_id;
             created_at = 1_0000_0000;
+            trans_type = "transfer";
         };
         return await storeTransaction(Principal.fromText("ocpcu-jaaaa-aaaab-qab6q-cai"), msg.caller, transaction, transaction_id);
 
@@ -605,6 +607,7 @@ actor Escrow {
                         message = "This transaction was successful";
                         project_id = project_id;
                         created_at = current;
+                        trans_type = "transfer";
                     };
                     let storeTr : Text = await storeTransaction(approval.sender, approval.target, transaction, project_id);
                 };
@@ -633,6 +636,7 @@ actor Escrow {
                                         message = "This transaction was successful";
                                         project_id = project_id;
                                         created_at = current;
+                                        trans_type = "transfer";
                                     };
                                     let storeTr : Text = await storeTransaction(approval.sender, approval.target, transaction, project_id);
                                 };
@@ -646,6 +650,7 @@ actor Escrow {
                                         message = "Error: This transaction has failed: " # transferErrorMessage(result_again);
                                         project_id = project_id;
                                         created_at = current;
+                                        trans_type = "transfer";
                                     };
                                     let storeTr : Text = await storeTransaction(approval.sender, approval.target, transaction, project_id);
                                 };
@@ -661,6 +666,7 @@ actor Escrow {
                                 message = "Error: This transaction has failed: " # transferErrorMessage(result);
                                 project_id = project_id;
                                 created_at = current;
+                                trans_type = "transfer";
                             };
                             let storeTr : Text = await storeTransaction(approval.sender, approval.target, transaction, project_id);
                         };
@@ -716,6 +722,7 @@ actor Escrow {
                             message = "This transaction was successful";
                             project_id = project_id;
                             created_at = current;
+                            trans_type = "transfer";
                         };
                         let storeTr : Text = await storeTransaction(approval.sender, approval.target, trans, project_id);
                     };
@@ -772,6 +779,7 @@ actor Escrow {
                                     message = "Error: This transaction has failed: " # transferErrorMessage(result);
                                     project_id = project_id;
                                     created_at = current;
+                                    trans_type = "transfer";
                                 };
                                 let storeTr : Text = await storeTransaction(approval.sender, approval.target, trans, project_id);
                             };
@@ -798,6 +806,7 @@ actor Escrow {
                     target = approval.target;
                     status = "On hold";
                     transaction_number = ?0;
+                    trans_type = "transfer";
                 };
                 transactions := Array.append(transactions, [(trans, result1)]);
                 count := count +1;
@@ -819,6 +828,7 @@ actor Escrow {
                         message = "This transaction was successful";
                         project_id = project_id;
                         created_at = transaction.0.created_at;
+                        trans_type = "transfer";
                     };
                     let storeTr : Text = await storeTransaction(transaction.0.sender, transaction.0.target, trans, project_id);
                 };
@@ -875,6 +885,7 @@ actor Escrow {
                                 message = "Error: This transaction has failed: " # transferErrorMessage(result);
                                 project_id = project_id;
                                 created_at = transaction.0.created_at;
+                                trans_type = "transfer";
                             };
                             let storeTr : Text = await storeTransaction(transaction.0.sender, transaction.0.target, trans, project_id);
                         };
@@ -1031,6 +1042,7 @@ actor Escrow {
                                     message = "Transfer was successfull";
                                     project_id = "NA";
                                     created_at = Prim.time();
+                                    trans_type = "transfer";
                                 };
                                 return await storeTransaction(Principal.fromBlob(from), Principal.fromBlob(to), transaction, "NA");
                             };

@@ -12,12 +12,18 @@ import serdeJson "mo:serde/JSON";
 import Buffer "mo:base/Buffer";
 import Iter "mo:base/Iter";
 module {
-    public func pledgeEncode(data : T.PledgeActive) : async {
+    public func pledgeEncode(data : T.Pledge) : async {
         #ok : Blob;
         #err : Text;
     } {
+        //  doc_key : Text;
+        // idea_id : Text;
+        // feature_id : Text;
+        // amount : Nat64;
+        // expected_amount : Nat64;
+        // user : Principal;
         try {
-            let UserKeys = ["pledge", "expected"];
+            let UserKeys = ["doc_key", "idea_id", "feature_id", "amount", "expected_amount", "user"];
             let blob : Blob = to_candid (data);
             let json_result = JSON.toText(blob, UserKeys, null);
             switch (json_result) {
@@ -40,7 +46,7 @@ module {
             return #err(Error.message(e));
         };
     };
-    public func pledgeDataDecode(data : Blob) : async T.PledgeActiveResult {
+    public func pledgeDataDecode(data : Blob) : async T.Pledge {
         try {
             let info = Text.decodeUtf8(data);
             switch (info) {
@@ -48,44 +54,40 @@ module {
                     let blob = serdeJson.fromText(info, null);
                     switch (blob) {
                         case (#ok(blob)) {
-                            let pledge : ?T.PledgeActiveNat = from_candid (blob);
+                            let pledge : ?T.Pledge = from_candid (blob);
                             switch (pledge) {
                                 case (?money) {
 
-                                    let moneyNat64 : T.PledgeActive = {
-                                        pledge = Nat64.fromNat(money.pledge);
-                                        expected = Nat64.fromNat(money.expected);
-                                    };
-                                    return #ok(moneyNat64);
+                                    return (money);
                                 };
                                 case null {
-                                    return #err("Unexpected error: Incorrectly parsed");
+                                    throw Error.reject("Unexpected error: Incorrectly parsed");
                                 };
                             };
                         };
                         case (#err(err)) {
-                            return #err(err);
+                            throw Error.reject(err);
                         };
                     };
                     //return #ok(info);
                 };
                 case (null) {
-                    return #err("Data was incorrectly decoded");
+                    throw Error.reject("Data was incorrectly decoded");
                 };
             };
 
         } catch (e) {
-            return #err(Error.message(e));
+            throw Error.reject(Error.message(e));
         };
 
     };
 
-    public func updatePledges(users : [T.User], user : T.User, previousPledge : T.PledgeActive) : [T.User] {
+    public func updatePledges(users : [T.User], user : T.User, previousPledge : T.Pledge) : [T.User] {
         var updatedUsers : Buffer.Buffer<T.User> = Buffer.Buffer<T.User>(0);
         var userFound : Bool = false;
         for (thisUser in users.vals()) {
             if (thisUser.user == user.user) {
-                let amount : Nat = user.amount_pledged + thisUser.amount_pledged - Nat64.toNat(previousPledge.pledge);
+                let amount : Nat = user.amount_pledged + thisUser.amount_pledged - Nat64.toNat(previousPledge.amount);
                 updatedUsers.add({
                     user = user.user;
                     amount_pledged = amount;

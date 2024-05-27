@@ -2,12 +2,31 @@ import Principal "mo:base/Principal";
 import Nat "mo:base/Nat";
 module {
     public type Doc = {
-        version : ?Nat64;
+        updated_at : Nat64;
         owner : Principal;
         data : Blob;
         description : ?Text;
         created_at : Nat64;
+        version : ?Nat64;
     };
+    public type ListMatcher = { key : ?Text; description : ?Text };
+    public type ListOrder = { field : ListOrderField; desc : Bool };
+    public type ListOrderField = { #UpdatedAt; #Keys; #CreatedAt };
+    public type ListPaginate = { start_after : ?Text; limit : ?Nat64 };
+    public type ListParams = {
+        order : ?ListOrder;
+        owner : ?Principal;
+        matcher : ?ListMatcher;
+        paginate : ?ListPaginate;
+    };
+    public type ListResults_1 = {
+        matches_pages : ?Nat64;
+        matches_length : Nat64;
+        items_page : ?Nat64;
+        items : [(Text, Doc)];
+        items_length : Nat64;
+    };
+
     public type SolutionStatus = {
         status : Text;
     };
@@ -17,7 +36,7 @@ module {
         feature_id : Text;
         amount : Nat64;
         expected_amount : Nat64;
-        user : Principal;
+        user : Text;
     };
     public type DocResponse = {
         version : Nat64;
@@ -28,9 +47,9 @@ module {
     };
 
     public type DocInput = {
-        version : ?Nat64;
         data : Blob;
         description : ?Text;
+        version : ?Nat64;
     };
     public type UpdateDocInput = {
         version : Nat64;
@@ -44,18 +63,12 @@ module {
     };
     public type UpdateManyDocsInput = [(Text, Text, UpdateDocInput)];
     public type SetManyDocsInput = [(Text, Text, DocInput)];
-    public type GetDocResponse = (DocResponse);
+    public type GetDocResponse = (Doc);
     public type GetDocManyResponse = {
         key : ?Text;
-        document : ?{
-            version : ?Nat64;
-            owner : Principal;
-            data : Blob;
-            description : ?Text;
-            created_at : Nat64;
-        };
+        document : ?Doc;
     };
-    public type GetManyDocsResponse = [(Text, ?DocResponse)];
+    public type GetManyDocsResponse = [(Text, ?Doc)];
     public type GetDocResult = { #ok : GetDocResponse; #err : Text };
     public type GetManyDocsInput = [(Text, Text)];
     public type GetManyDocsResult = { #ok : GetManyDocsResponse; #err : Text };
