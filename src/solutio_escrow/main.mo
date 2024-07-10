@@ -76,6 +76,8 @@ actor Escrow {
             sender = msg.caller;
             target = msg.caller;
             amount = 0;
+            to = Principal.toBlob(msg.caller);
+            from = Principal.toBlob(msg.caller);
             transaction_number = null;
             status = status;
             message = "The result of the transaction was: " # status;
@@ -126,6 +128,8 @@ actor Escrow {
             sender = Principal.fromText("ocpcu-jaaaa-aaaab-qab6q-cai");
             target = msg.caller;
             amount = 0;
+            to = Principal.toBlob(Principal.fromText("ocpcu-jaaaa-aaaab-qab6q-cai"));
+            from = Principal.toBlob(msg.caller);
             transaction_number = null;
             status = status;
             message = "The result of the transaction was: " # status;
@@ -394,6 +398,11 @@ actor Escrow {
             case (null) { [] };
             case (?value) { value };
         };
+        for (app in approval.vals()) {
+            if (app.amount <= 0) {
+                throw Error.reject("Approval cant be lower or equal to 0.0001 ICP. Thats the transfer fee from the ledger.");
+            };
+        };
         let newList : [T.Approval] = Array.append(project_approvals, approval);
         transactions_approvals := Trie.put<Text, [T.Approval]>(transactions_approvals, key(project_id), Text.equal, newList).0;
         return "Success";
@@ -419,7 +428,7 @@ actor Escrow {
     public func getApprovals(project_id : Text) : async [T.Approval] {
         return switch (Trie.get<Text, [T.Approval]>(transactions_approvals, key(project_id), Text.equal)) {
             case (null) {
-                throw Error.reject("Project id doesnt have approvals!");
+                return [];
             };
             case (?value) { value };
         };
@@ -445,7 +454,7 @@ actor Escrow {
     public func getProjectsApprovals_bySender(project_id : Text, sender : Principal) : async [T.Approval] {
         let project_approvals : [T.Approval] = switch (Trie.get<Text, [T.Approval]>(transactions_approvals, key(project_id), Text.equal)) {
             case (null) {
-                throw Error.reject("Project id doesnt have approvals!");
+                return [];
             };
             case (?value) { value };
         };
@@ -475,7 +484,7 @@ actor Escrow {
     public func getProjectsApprovals_byTarget(project_id : Text, target : Principal) : async [T.Approval] {
         let project_approvals : [T.Approval] = switch (Trie.get<Text, [T.Approval]>(transactions_approvals, key(project_id), Text.equal)) {
             case (null) {
-                throw Error.reject("Project id doesnt have approvals!");
+                return [];
             };
             case (?value) { value };
         };
@@ -504,7 +513,7 @@ actor Escrow {
     public func getProjectApprovals_lowerThan(project_id : Text, amount : Nat) : async [T.Approval] {
         let project_approvals : [T.Approval] = switch (Trie.get<Text, [T.Approval]>(transactions_approvals, key(project_id), Text.equal)) {
             case (null) {
-                throw Error.reject("Project id doesnt have approvals!");
+                return [];
             };
             case (?value) { value };
         };
@@ -533,7 +542,7 @@ actor Escrow {
     public func getProjectApprovals_majorThan(project_id : Text, amount : Nat) : async [T.Approval] {
         let project_approvals : [T.Approval] = switch (Trie.get<Text, [T.Approval]>(transactions_approvals, key(project_id), Text.equal)) {
             case (null) {
-                throw Error.reject("Project id doesnt have approvals!");
+                return [];
             };
             case (?value) { value };
         };
@@ -601,6 +610,8 @@ actor Escrow {
                     let transaction : T.Transaction = {
                         sender = approval.sender;
                         target = approval.target;
+                        to = Principal.toBlob(approval.sender);
+                        from = Principal.toBlob(approval.target);
                         amount = approval.amount;
                         transaction_number = ?result;
                         status = "Success";
@@ -630,6 +641,8 @@ actor Escrow {
                                     let transaction : T.Transaction = {
                                         sender = approval.sender;
                                         target = approval.target;
+                                        to = Principal.toBlob(approval.sender);
+                                        from = Principal.toBlob(approval.target);
                                         amount = allowance;
                                         transaction_number = ?result_again;
                                         status = "Success";
@@ -645,6 +658,8 @@ actor Escrow {
                                         sender = approval.sender;
                                         target = approval.target;
                                         amount = allowance;
+                                        to = Principal.toBlob(approval.sender);
+                                        from = Principal.toBlob(approval.target);
                                         transaction_number = null;
                                         status = "Success";
                                         message = "Error: This transaction has failed: " # transferErrorMessage(result_again);
@@ -661,6 +676,8 @@ actor Escrow {
                                 sender = approval.sender;
                                 target = approval.target;
                                 amount = approval.amount;
+                                to = Principal.toBlob(approval.sender);
+                                from = Principal.toBlob(approval.target);
                                 transaction_number = null;
                                 status = "Failure";
                                 message = "Error: This transaction has failed: " # transferErrorMessage(result);
@@ -703,20 +720,21 @@ actor Escrow {
                 let result1 = await Ledger.icrc.icrc2_transfer_from({
                     to = to_account;
                     spender_subaccount = null;
-                    amount = approval.amount - 10000;
+                    amount = approval.amount;
                     from = from_account;
                     from_subaccount = null;
                     created_at_time = ?current;
                     fee = null;
                     memo = null;
                 });
-                //transactions := Array.append(transactions, [(trans, result1)]);
                 switch (result1) {
                     case (#Ok(result)) {
                         let trans : T.Transaction = {
                             sender = approval.sender;
                             target = approval.target;
                             amount = approval.amount;
+                            to = Principal.toBlob(approval.sender);
+                            from = Principal.toBlob(approval.target);
                             transaction_number = ?result;
                             status = "Success";
                             message = "This transaction was successful";
@@ -728,52 +746,13 @@ actor Escrow {
                     };
                     case (#Err(result)) {
                         switch (result) {
-                            // case (#InsufficientAllowance { allowance : Nat }) {
-                            //     let result_again = await Ledger.icrc.icrc2_transfer_from({
-                            //         to = to_account;
-                            //         spender_subaccount = null;
-                            //         amount = allowance;
-                            //         from = from_account;
-                            //         from_subaccount = null;
-                            //         created_at_time = ?current;
-                            //         fee = null;
-                            //         memo = null;
-                            //     });
-                            //     switch (result_again) {
-                            //         case (#Ok(result_again)) {
-                            //             // sender : Principal, target : Principal, transaction : T.Transaction, project_id : Text
-                            //             let transaction : T.Transaction = {
-                            //                 sender = approval.sender;
-                            //                 target = approval.target;
-                            //                 amount = allowance;
-                            //                 transaction_number = ?result_again;
-                            //                 status = "Success";
-                            //                 message = "This transaction was successful";
-                            //                 project_id = project_id;
-                            //                 created_at = current;
-                            //             };
-                            //             let storeTr : Text = await storeTransaction(approval.sender, approval.target, transaction, project_id);
-                            //         };
-                            //         case (#Err(result_again)) {
-                            //             let transaction : T.Transaction = {
-                            //                 sender = approval.sender;
-                            //                 target = approval.target;
-                            //                 amount = allowance;
-                            //                 transaction_number = null;
-                            //                 status = "Success";
-                            //                 message = "Error: This transaction has failed: " # transferErrorMessage(result_again);
-                            //                 project_id = project_id;
-                            //                 created_at = current;
-                            //             };
-                            //             let storeTr : Text = await storeTransaction(approval.sender, approval.target, transaction, project_id);
-                            //         };
-                            //     };
-                            // };
                             case (_) {
                                 let trans : T.Transaction = {
                                     sender = approval.sender;
                                     target = approval.target;
                                     amount = approval.amount;
+                                    to = Principal.toBlob(approval.sender);
+                                    from = Principal.toBlob(approval.target);
                                     transaction_number = null;
                                     status = "Failure";
                                     message = "Error: This transaction has failed: " # transferErrorMessage(result);
@@ -790,7 +769,7 @@ actor Escrow {
                 let result1 = Ledger.icrc.icrc2_transfer_from({
                     to = to_account;
                     spender_subaccount = null;
-                    amount = approval.amount -10000;
+                    amount = approval.amount;
                     from = from_account;
                     from_subaccount = null;
                     created_at_time = ?current;
@@ -804,6 +783,8 @@ actor Escrow {
                     project_id = project_id;
                     sender = approval.sender;
                     target = approval.target;
+                    to = Principal.toBlob(approval.sender);
+                    from = Principal.toBlob(approval.target);
                     status = "On hold";
                     transaction_number = ?0;
                     trans_type = "transfer";
@@ -823,6 +804,8 @@ actor Escrow {
                         sender = transaction.0.sender;
                         target = transaction.0.target;
                         amount = transaction.0.amount;
+                        to = Principal.toBlob(transaction.0.sender);
+                        from = Principal.toBlob(transaction.0.target);
                         transaction_number = ?result;
                         status = "Success";
                         message = "This transaction was successful";
@@ -880,6 +863,8 @@ actor Escrow {
                                 sender = transaction.0.sender;
                                 target = transaction.0.target;
                                 amount = transaction.0.amount;
+                                to = Principal.toBlob(transaction.0.sender);
+                                from = Principal.toBlob(transaction.0.target);
                                 transaction_number = null;
                                 status = "Failure";
                                 message = "Error: This transaction has failed: " # transferErrorMessage(result);
@@ -1014,7 +999,7 @@ actor Escrow {
     // 4. Store the transaction record for platform reference.
     // Official Documentation:
     // - For more information, refer to [Solutio Transactions Documentation](https://forum.solutio.one/-195/verifyandstoretransaction-documentation).
-    public shared (msg) func verifyAndStoreTransaction(trans_number : Nat64) : async Text {
+    public shared func verifyAndStoreTransaction(trans_number : Nat64, typeOf : Text, origin : Text, destination : Text) : async Text {
         let queryArgs : Ledger.GetBlocksArgs = {
             start = trans_number;
             length = Nat64.fromNat(1);
@@ -1034,17 +1019,19 @@ actor Escrow {
                             case (#Transfer { fee; from; to; amount; spender }) {
                                 let transfer_amount : Nat64 = amount.e8s;
                                 let transaction : T.Transaction = {
-                                    sender = Principal.fromBlob(from);
-                                    target = Principal.fromBlob(to);
+                                    sender = Principal.fromText(origin);
+                                    target = Principal.fromText(destination);
+                                    to = to;
+                                    from = from;
                                     amount = Nat64.toNat(transfer_amount);
                                     transaction_number = ?Nat64.toNat(trans_number);
                                     status = "Success";
                                     message = "Transfer was successfull";
                                     project_id = "NA";
                                     created_at = Prim.time();
-                                    trans_type = "transfer";
+                                    trans_type = "transfer: " #typeOf;
                                 };
-                                return await storeTransaction(Principal.fromBlob(from), Principal.fromBlob(to), transaction, "NA");
+                                return await storeTransaction(Principal.fromText(origin), Principal.fromText(destination), transaction, "NA");
                             };
                             case (_) {
                                 throw Error.reject("The operation is not 'transfer'");
@@ -1291,21 +1278,37 @@ actor Escrow {
         };
         switch (currentReputation) {
             case (null) {
-                newReputation := {
-                    number = (am_paid * 100 / am_promised);
-                    amount_paid = am_paid;
-                    amount_promised = am_promised;
+                if ((am_paid * 100 / am_promised) > 100) {
+                    newReputation := {
+                        number = 100;
+                        amount_paid = am_paid;
+                        amount_promised = am_promised;
+                    };
+                } else {
+                    newReputation := {
+                        number = (am_paid * 100 / am_promised);
+                        amount_paid = am_paid;
+                        amount_promised = am_promised;
+                    };
                 };
             };
             case (?reputation) {
                 // let floatPaid = Nat.toInt(am_paid);
-                let reputDebug : Nat = ((100 * ((reputation.amount_paid) + am_paid) / (reputation.amount_promised + am_promised)));
-                Debug.print(debug_show ("New reputation: ", reputDebug));
+                if ((100 * ((reputation.amount_paid) + am_paid) / (reputation.amount_promised + am_promised)) > 100) {
+                    newReputation := {
+                        number = 100;
+                        amount_paid = reputation.amount_paid + am_paid;
+                        amount_promised = reputation.amount_promised + am_promised;
+                    };
+                } else {
 
-                newReputation := {
-                    number = ((reputation.amount_paid + am_paid) * 100 / (reputation.amount_promised + am_promised));
-                    amount_paid = reputation.amount_paid + am_paid;
-                    amount_promised = reputation.amount_promised + am_promised;
+                    let reputDebug : Nat = ((100 * ((reputation.amount_paid) + am_paid) / (reputation.amount_promised + am_promised)));
+                    newReputation := {
+                        number = ((reputation.amount_paid + am_paid) * 100 / (reputation.amount_promised + am_promised));
+                        amount_paid = reputation.amount_paid + am_paid;
+                        amount_promised = reputation.amount_promised + am_promised;
+
+                    };
                 };
 
             };
@@ -1434,7 +1437,7 @@ actor Escrow {
                                     };
 
                                     case (?description) {
-                                        updAt_Id := ?doc.version;
+                                        updAt_Id := doc.version;
                                         docBlob := ?doc.data;
                                         var totalId : Nat = switch (Nat.fromText(description)) {
                                             case (null) {
@@ -1502,7 +1505,7 @@ actor Escrow {
                     switch (maybeDoc) {
                         // We check if any document requested is non-existent
                         case (null) {
-                            if ((text == el_id)) {
+                            if ((text == "REV_IDEA_" # el_id)) {
                                 throw Error.reject("idea_revenue_counter document of the element doesnt exist!");
                             };
                         };
@@ -1513,7 +1516,7 @@ actor Escrow {
                                         throw Error.reject("idea_revenue_counter document should have a description");
                                     };
                                     case (?description) {
-                                        updAt_Id := ?doc.version;
+                                        updAt_Id := doc.version;
                                         docBlob := ?doc.data;
                                         descriptionId := description;
                                         var docBlobNotNull : Blob = switch (docBlob) {
@@ -1544,7 +1547,7 @@ actor Escrow {
         };
         let blobInput : Blob = switch (docBlob) {
             case (null) {
-                throw Error.reject("Data is null");
+                throw Error.reject("IDEA REVENUE COUNTER DOC Data is null");
             };
             case (?blob) {
                 blob;
@@ -1608,7 +1611,7 @@ actor Escrow {
                                         throw Error.reject("Solution status document should have a description");
                                     };
                                     case (?description) {
-                                        updAtPl_sol := ?doc.version;
+                                        updAtPl_sol := doc.version;
                                         // if (Text.contains(description, #text "delivered") or Text.contains(description, #text "completed")) {
                                         //   throw Error.reject("Error: It was already delivered or completed.");
                                         // };
@@ -1661,6 +1664,38 @@ actor Escrow {
 
         return "Success";
 
+    };
+
+    public query func getHighestPaymentEver(user : Text) : async Nat {
+        let userTransfers : [T.Transaction] = getTransactionsBySender_Local(Principal.fromText(user));
+        var max = 0;
+        for (transaction in userTransfers.vals()) {
+            if (transaction.amount > max and transaction.trans_type == "transfer") {
+                max := transaction.amount;
+            };
+        };
+        return max;
+    };
+
+    func getTransactionsBySender_Local(sender : Principal) : [T.Transaction] {
+        let sender_key = { hash = Principal.hash(sender); key = sender };
+        let sender_transactions_ids = switch (Trie.get<Principal, [Text]>(senders, sender_key, Principal.equal)) {
+            case (null) { [] };
+            case (?value) { value };
+        };
+        var sender_transactions : [T.Transaction] = [];
+        // let updated_sender_transactions : [Text] = Array.append(sender_transactions, [transaction_id]);
+        for (transaction_id in sender_transactions_ids.vals()) {
+            let transaction_key : T.Key = key(transaction_id);
+            let transaction : ?T.Transaction = Trie.get<Text, T.Transaction>(transactions, transaction_key, Text.equal);
+            switch (transaction) {
+                case (null) { /** do nothing */ };
+                case (?transaction) {
+                    sender_transactions := Array.append(sender_transactions, [transaction]);
+                };
+            };
+        };
+        return sender_transactions;
     };
 
 };
