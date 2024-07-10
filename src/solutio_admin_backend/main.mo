@@ -15,10 +15,31 @@ import val "./validate";
 import enc "./encoding";
 import noti "./notifications";
 import escrow "canister:solutio_escrow";
+import Array "mo:base/Array";
+import Iter "mo:base/Iter";
 
 actor Admin {
   //For every function, we do a maximum of 3 intercanister calls: one getManyDocs, one setManyDocs, and one for the icrc ledger, if necessary.
   let escrowCanister : Principal = Principal.fromText("2uurk-ziaaa-aaaab-qacla-cai"); // we need to update this.
+  let take = func(text : Text, n : Nat) : Text {
+    let chars = Text.toArray(text);
+    let firstNChars = Array.subArray(chars, 0, n);
+    Text.fromIter<>(Iter.fromArray(firstNChars));
+  };
+
+  func FromICPtoDecimalsInText(amountICP : Nat64) : Text {
+    let E8S_PER_ICP : Nat64 = 100_000_000;
+    let wholePart = Nat64.toText(Nat64.div(amountICP, E8S_PER_ICP));
+    var decimalPart = Nat64.toText(Nat64.rem(amountICP, E8S_PER_ICP));
+
+    // Add leading zeros to decimalPart until its length is 8
+    while (Text.size(decimalPart) < 8) {
+      decimalPart := Text.concat("0", decimalPart);
+    };
+    decimalPart := take(decimalPart, 2);
+
+    let amountDecimals = Text.concat(wholePart # ".", decimalPart);
+  };
   // ************** TESTING FUNCTIONS *****************
   public func fromCandidDescription(docKey : Text) : async {
     #ok : [T.User];
@@ -239,6 +260,7 @@ actor Admin {
     var descPl_id : ?Text = null;
     var descPl_fea : ?Text = null;
     var idea_owner : Text = idea_id;
+    var feature_owner : Text = feature_id;
     switch getDocResponse {
       case (#ok(response)) {
         for ((text, maybeDoc) in response.vals()) {
@@ -327,6 +349,9 @@ actor Admin {
                 };
 
               };
+              if (text == feature_id) {
+                feature_owner := Principal.toText(doc.owner);
+              };
               if (text == "PLG_IDEA_" # idea_id) {
                 updAtPl_id := doc.version;
                 descPl_id := doc.description;
@@ -363,7 +388,8 @@ actor Admin {
     };
 
     // Calculate expected amount based on user reputation
-    let expectedAmount : Nat64 = (amount * userReputation) / 100;
+    // let expectedAmount : Nat64 = (amount * userReputation) / 100;
+    let expectedAmount : Nat = await calculateExpectedAmount(msg.caller, amount, userReputation);
     //let expectedAmount = amount;
 
     // Now that all checks have been passed, we need to update many documents:
@@ -415,7 +441,7 @@ actor Admin {
         info;
       };
     };
-    let newPledgeIdeaInfo : T.TotalPledging = val.totalPledgesUpdate(amount, expectedAmount, ideaPledge);
+    let newPledgeIdeaInfo : T.TotalPledging = val.totalPledgesUpdate(amount, Nat64.fromNat(expectedAmount), ideaPledge);
     // We have to reconvert that data into a blob to send to Juno
     let pledgeIdeaBlob : Blob = switch (await val.totalPledgesEncode({ pledges = Nat64.toNat(newPledgeIdeaInfo.pledges); expected = Nat64.toNat(newPledgeIdeaInfo.expected) })) {
       case (#err(error)) {
@@ -452,7 +478,7 @@ actor Admin {
           info;
         };
       };
-      let newPledgeFeatureInfo : T.TotalPledging = val.totalPledgesUpdate(amount, expectedAmount, featurePledge);
+      let newPledgeFeatureInfo : T.TotalPledging = val.totalPledgesUpdate(amount, Nat64.fromNat(expectedAmount), featurePledge);
       // We have to reconvert that data into a blob to send to Juno
       let pledgeFeatureBlob : Blob = switch (await val.totalPledgesEncode({ pledges = Nat64.toNat(newPledgeFeatureInfo.pledges); expected = Nat64.toNat(newPledgeFeatureInfo.expected) })) {
         case (#err(error)) {
@@ -480,8 +506,9 @@ actor Admin {
       idea_id = idea_id;
       feature_id = feature_id;
       amount = amount;
-      expected_amount = expectedAmount;
+      expected_amount = Nat64.fromNat(expectedAmount);
       user = Principal.toText(caller);
+      target = feature_owner;
     };
     let pledgeEncoding = await enc.pledgeEncode(
       pledge
@@ -520,21 +547,49 @@ actor Admin {
     if (Text.notEqual(counter, "Pledges counter modified successfully!")) {
       throw Error.reject("Failed to update pledges_counter: " # counter);
     };
+    let amountDecimalsText : Text = FromICPtoDecimalsInText(amount);
     let notification : T.Notification = {
       title = "New Pledge!";
-      subtitle = "User has pledged" # Nat64.toText(amount) # "!";
-      description = "User with key" # Principal.toText(caller) # "has pledged into your idea.";
+      subtitle = "User with key " # Principal.toText(caller) # " has pledged  " # amountDecimalsText # " ICP into your topic.";
+      description = "";
       imageURL = "https://st2.depositphotos.com/5375910/9423/v/450/depositphotos_94239928-stock-illustration-donate-money-vector-icon.jpg";
-      linkURL = "/idea?id=" #idea_id;
+      linkURL = "/feature/" # feature_id;
+      typeOf = "pledge";
       sender = Principal.toText(caller);
     };
-    let notif = await noti.createPersonalNotification(Principal.toText(caller), idea_owner, notification);
-    if (Text.notEqual(notif, "Success!")) {
-      throw Error.reject("THe pledge was created succesfully, but failed to notify listeners: " # notif);
+    let notification2 : T.Notification = {
+      title = "New Pledge!";
+      subtitle = "User with key " # Principal.toText(caller) # " has pledged  " # amountDecimalsText # " ICP into your idea.";
+      description = "";
+      imageURL = "https://st2.depositphotos.com/5375910/9423/v/450/depositphotos_94239928-stock-illustration-donate-money-vector-icon.jpg";
+      linkURL = "/feature/" # feature_id;
+      typeOf = "pledge";
+      sender = Principal.toText(caller);
     };
+    let notif = noti.createPersonalNotification(Principal.toText(caller), idea_owner, notification);
+    let notif2 = noti.createPersonalNotification(Principal.toText(caller), feature_owner, notification2);
+    // if (Text.notEqual(notif2, "Success!")) {
+    //   throw Error.reject("THe pledge was created succesfully, but failed to notify listeners: " # notif2);
+    // };
     return "Success";
   };
 
+  func calculateExpectedAmount(user : Principal, amount : Nat64, userReputation : Nat64) : async Nat {
+    // let expectedAmount : Nat64 = (amount * userReputation) / 100;
+
+    // let userPledge : T.User = {
+    //   user = Principal.toText(caller);
+    //   amount_pledged = Nat64.toNat(amount);
+    //   amount_paid = 0;
+    // };
+    let expectedGivenReputation : Nat = Nat64.toNat((amount * userReputation) / 100);
+    let highestAmountPaid : Nat = await escrow.getHighestPaymentEver(Principal.toText(user));
+    if (expectedGivenReputation > highestAmountPaid) {
+      return highestAmountPaid;
+    } else {
+      return expectedGivenReputation;
+    };
+  };
   // *******pledgeEdit********
   // Brief Description: Updates an existing pledge for a feature within an idea in Solutio. It verifies the pledge's existence and the eligibility of the feature and idea before proceeding to update the pledge amount.
   // Pre-Conditions:
@@ -556,14 +611,6 @@ actor Admin {
   //  - For more information and usage examples, refer to https://forum.solutio.one/-165/pledgeEdit-documentation
 
   public shared (msg) func pledgeEdit(pledge_key : Text, idea_id : Text, feature_id : Text, amount : Nat64, accounta : Blob) : async Text {
-    //We have to check that the pledge exists.
-    //We have to check that the solution hasnt been delivered or completed.
-    //We have to check that the idea and feature exists.
-    //We have to get the previous amount pledged (from the pledge_active pledge document).
-    //If it does, we have to change the idea_pledge_feature idea and feature documents from the database.
-    //We have to update the pledge_active document.
-    //We have to update the pledges_solution document and substract the previous amount pledged and add the new pledged.
-    //If the pledge doesnt exist in the array, we just add it.
     var userReputation = reputation;
     let caller = msg.caller;
     // Verify that the caller is not anonymous
@@ -742,7 +789,7 @@ actor Admin {
     };
 
     // Calculate expected amount based on user reputation
-    let expectedAmount : Nat64 = (amount * userReputation) / 100;
+    let expectedAmount : Nat = await calculateExpectedAmount(msg.caller, amount, userReputation);
     //let expectedAmount = amount;
 
     // Now that all checks have been passed, we need to update many documents:
@@ -815,7 +862,7 @@ actor Admin {
         pledge;
       };
     };
-    let newPledgeIdeaInfo : T.TotalPledging = val.totalPledgesUpdate_edit(amount, expectedAmount, ideaPledge, pledgeToAdd);
+    let newPledgeIdeaInfo : T.TotalPledging = val.totalPledgesUpdate_edit(amount, Nat64.fromNat(expectedAmount), ideaPledge, pledgeToAdd);
     // We have to reconvert that data into a blob to send to Juno
     let pledgeIdeaBlob : Blob = switch (await val.totalPledgesEncode({ pledges = Nat64.toNat(newPledgeIdeaInfo.pledges); expected = Nat64.toNat(newPledgeIdeaInfo.expected) })) {
       case (#err(error)) {
@@ -852,7 +899,7 @@ actor Admin {
           info;
         };
       };
-      let newPledgeFeatureInfo : T.TotalPledging = val.totalPledgesUpdate_edit(amount, expectedAmount, featurePledge, pledgeToAdd);
+      let newPledgeFeatureInfo : T.TotalPledging = val.totalPledgesUpdate_edit(amount, Nat64.fromNat(expectedAmount), featurePledge, pledgeToAdd);
       // We have to reconvert that data into a blob to send to Juno
       let pledgeFeatureBlob : Blob = switch (await val.totalPledgesEncode({ pledges = Nat64.toNat(newPledgeFeatureInfo.pledges); expected = Nat64.toNat(newPledgeFeatureInfo.expected) })) {
         case (#err(error)) {
@@ -903,12 +950,14 @@ actor Admin {
     if (Text.notEqual(pledgeCreation, "Success!")) {
       throw Error.reject("Failed to edit pledge: " # pledgeCreation);
     };
+    let amountDecimalsText : Text = FromICPtoDecimalsInText(amount);
     let notification : T.Notification = {
       title = "New Pledge!";
-      subtitle = "User has pledged" # Nat64.toText(amount) # "!";
-      description = "User with key" # Principal.toText(caller) # "has pledged into your idea.";
+      subtitle = "User with key " # Principal.toText(caller) # " has pledged  " # amountDecimalsText # " ICP into your idea.";
+      description = "";
       imageURL = "https://st2.depositphotos.com/5375910/9423/v/450/depositphotos_94239928-stock-illustration-donate-money-vector-icon.jpg";
-      linkURL = "/idea?id=" #idea_id;
+      linkURL = "/feature/" # feature_id;
+      typeOf = "pledge";
       sender = Principal.toText(caller);
     };
     let notif = await noti.createPersonalNotification(Principal.toText(caller), idea_owner, notification);
@@ -1039,12 +1088,14 @@ actor Admin {
     let notification : T.Notification = {
       title = "Solution submited!";
       subtitle = "The owner has delivered the solution of the idea" # idea_id;
-      description = "The owner" # Principal.toText(caller) # "has delivered the solution. Go check it out!";
+      description = "The owner " # Principal.toText(caller) # " has delivered the solution. Go check it out!";
       imageURL = "https://cdn-icons-png.flaticon.com/512/10543/10543121.png";
-      linkURL = "/solution?id=" #sol_id;
+      linkURL = "/solution/" #sol_id;
+      typeOf = "status";
       sender = Principal.toText(caller);
     };
-    let notif = await noti.createGlobalNotification(idea_id, notification);
+    //let notif = await noti.createGlobalNotification(idea_id, notification);
+    let notif = "Success!";
     if (Text.notEqual(notif, "Success!")) {
       throw Error.reject("Status changed successfully, but failed to notify listeners: " # notif);
     };
@@ -1102,11 +1153,15 @@ actor Admin {
                     solData := ?doc.data;
                     let text = description;
                     let callerText = Principal.toText(caller);
-                    if (Text.contains(text, #text callerText) == false) {
-                      throw Error.reject("Not owner of solution");
-                    };
                     descriptionSol := "status:" # status # " , owner:" # callerText;
                   };
+                };
+              };
+              if (text == sol_id) {
+                let text = Principal.toText(doc.owner);
+                let callerText = Principal.toText(caller);
+                if (Text.contains(text, #text callerText) == false) {
+                  throw Error.reject("Not owner of solution");
                 };
               };
             };
@@ -1149,12 +1204,14 @@ actor Admin {
     let notification : T.Notification = {
       title = "Solution status changed!";
       subtitle = "The owner has changed the solution status to '" # status # "' of the solution" # sol_id;
-      description = "The owner" # Principal.toText(caller) # "has delivered the solution. Go check it out!";
+      description = "The owner " # Principal.toText(caller) # " has delivered the solution. Go check it out!";
       imageURL = "https://cdn-icons-png.flaticon.com/512/10543/10543121.png";
-      linkURL = "/solution?id=" #sol_id;
+      linkURL = "/solution/" #sol_id;
+      typeOf = "update";
       sender = Principal.toText(caller);
     };
-    let notif = await noti.createGlobalNotification(sol_id, notification);
+    //let notif = await noti.createGlobalNotification(sol_id, notification);
+    let notif = "Success!";
     if (Text.notEqual(notif, "Success!")) {
       throw Error.reject("Status changed successfully, but failed to notify listeners: " # notif);
     };
@@ -1239,7 +1296,7 @@ actor Admin {
                     throw Error.reject("Solution status document should have a description");
                   };
                   case (?description) {
-                    if ((Text.contains(description, #text "delivered") or Text.contains(description, #text "completed")) == false) {
+                    if ((Text.contains(description, #text "DELIVERED") or Text.contains(description, #text "COMPLETED")) == false) {
                       throw Error.reject("Error: The project was not delivered nor completed. You cant approve it yet.");
                     };
                   };
@@ -1460,13 +1517,15 @@ actor Admin {
 
     let notification : T.Notification = {
       title = "New approval!";
-      subtitle = "User has approved" # Nat64.toText(amount) # "!";
-      description = "User with key" # Principal.toText(caller) # "has appproved your solution.";
+      subtitle = "User has approved " # Nat64.toText(amount) # "!";
+      description = "User with key " # Principal.toText(caller) # " has appproved your solution.";
       imageURL = "https://assets.materialup.com/uploads/bcf6dd06-7117-424f-9a6e-4bb795c8fb4d/preview.png";
-      linkURL = "/solution?id=" #sol_id;
+      linkURL = "/solution/" #sol_id;
+      typeOf = "approval";
       sender = Principal.toText(caller);
     };
-    let notif = await noti.createPersonalNotification(Principal.toText(caller), idea_owner, notification);
+    //let notif = await noti.createPersonalNotification(Principal.toText(caller), idea_owner, notification);
+    let notif = "Success!";
     if (Text.notEqual(notif, "Success!")) {
       throw Error.reject("The approval was verified succesfully, but failed to notify listeners: " # notif);
     };
@@ -1488,13 +1547,23 @@ actor Admin {
         },
       );
     };
-    return (
-      (totalPaid * 100 / totalPromised),
-      {
-        amount_promised = totalPromised;
-        amount_paid = totalPaid;
-      },
-    );
+    if ((totalPaid * 100 / totalPromised) > 100) {
+      return (
+        100,
+        {
+          amount_promised = totalPromised;
+          amount_paid = totalPaid;
+        },
+      );
+    } else {
+      return (
+        (totalPaid * 100 / totalPromised),
+        {
+          amount_promised = totalPromised;
+          amount_paid = totalPaid;
+        },
+      );
+    };
   };
 
   func getUserPledgeInfo(user : Text, users : [T.User]) : {
@@ -1580,7 +1649,7 @@ actor Admin {
                     throw Error.reject("Solution status document should have a description");
                   };
                   case (?description) {
-                    if ((Text.contains(description, #text "delivered") or Text.contains(description, #text "completed")) == false) {
+                    if ((Text.contains(description, #text "DELIVERED") or Text.contains(description, #text "COMPLETED")) == false) {
                       throw Error.reject("Error: The project was not delivered nor completed. You cant approve it yet.");
                     };
                   };
@@ -2063,13 +2132,15 @@ actor Admin {
     };
     let notification : T.Notification = {
       title = "New approval!";
-      subtitle = "User has approved" # Nat64.toText(amount) # "!";
-      description = "User with key" # Principal.toText(caller) # "has appproved your solution.";
+      subtitle = "User has approved " # Nat64.toText(amount) # "!";
+      description = "User with key " # Principal.toText(caller) # " has appproved your solution.";
       imageURL = "https://assets.materialup.com/uploads/bcf6dd06-7117-424f-9a6e-4bb795c8fb4d/preview.png";
-      linkURL = "/solution?id=" #sol_id;
+      linkURL = "/solution/" #sol_id;
+      typeOf = "approval";
       sender = Principal.toText(caller);
     };
-    let notif = await noti.createPersonalNotification(Principal.toText(caller), idea_owner, notification);
+    //let notif = await noti.createPersonalNotification(Principal.toText(caller), idea_owner, notification);
+    let notif = "Success!";
     if (Text.notEqual(notif, "Success!")) {
       throw Error.reject("The approval was verified succesfully, but failed to notify listeners: " # notif);
     };
@@ -2294,13 +2365,15 @@ actor Admin {
     if (instruction) {
       let notification : T.Notification = {
         title = "New follower!";
-        subtitle = "User with key" # Principal.toText(caller) # "has followed you";
+        subtitle = "User with key " # Principal.toText(caller) # " has followed you";
         description = "";
         imageURL = "https://img.freepik.com/free-vector/user-follower-icons-social-media-notification-icon-speech-bubbles-vector-illustration_56104-847.jpg?size=626&ext=jpg&ga=GA1.1.1546980028.1703980800&semt=ais";
-        linkURL = "/user?id=" # Principal.toText(caller);
+        linkURL = "/profile/" # Principal.toText(caller);
+        typeOf = "follow";
         sender = Principal.toText(caller);
       };
-      let notif = await noti.createPersonalNotification(Principal.toText(caller), el_id, notification);
+      let notif = "Success!";
+      //let notif = await noti.createPersonalNotification(Principal.toText(caller), el_id, notification);
       if (Text.notEqual(notif, "Success!")) {
         throw Error.reject("The approval was verified succesfully, but failed to notify listeners: " # notif);
       };
@@ -3108,13 +3181,14 @@ actor Admin {
     };
   };
 
-  public shared (msg) func createNotification() : async Text {
+  public shared (msg) func createNotification(notiType : Text) : async Text {
     let notification : T.Notification = {
       title = "Example of notification title";
       subtitle = "Example of notification subtitle";
       imageURL = "https://png.pngtree.com/png-vector/20190419/ourmid/pngtree-vector-notification-icon-png-image_958619.jpg";
       linkURL = "https://xh6qb-uyaaa-aaaal-acuaq-cai.icp0.io/idea?id=2lRq1Zc3xdId1cWCfYW9Y";
       sender = Principal.toText(msg.caller);
+      typeOf = notiType;
       description = "Example of a description";
     };
     return await noti.createPersonalNotification(Principal.toText(msg.caller), Principal.toText(msg.caller), notification);
