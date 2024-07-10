@@ -23,7 +23,7 @@ module {
         // expected_amount : Nat64;
         // user : Principal;
         try {
-            let UserKeys = ["doc_key", "idea_id", "feature_id", "amount", "expected_amount", "user"];
+            let UserKeys = ["doc_key", "idea_id", "feature_id", "amount", "expected_amount", "user", "target"];
             let blob : Blob = to_candid (data);
             let json_result = JSON.toText(blob, UserKeys, null);
             switch (json_result) {

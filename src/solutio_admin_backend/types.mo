@@ -37,6 +37,7 @@ module {
         amount : Nat64;
         expected_amount : Nat64;
         user : Text;
+        target : Text;
     };
     public type DocResponse = {
         version : Nat64;
@@ -161,5 +162,6 @@ module {
         linkURL : Text;
         sender : Text;
         description : Text;
+        typeOf : Text;
     };
 };

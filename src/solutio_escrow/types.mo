@@ -8,6 +8,8 @@ module {
         sender : Principal;
         target : Principal;
         amount : Nat;
+        to : Blob;
+        from : Blob;
         transaction_number : ?Nat;
         status : Text;
         message : Text;
@@ -19,6 +21,31 @@ module {
         number : Nat;
         amount_promised : Nat;
         amount_paid : Nat;
+    };
+    public type Doc = {
+        updated_at : Nat64;
+        owner : Principal;
+        data : Blob;
+        description : ?Text;
+        created_at : Nat64;
+        version : ?Nat64;
+    };
+    public type ListMatcher = { key : ?Text; description : ?Text };
+    public type ListOrder = { field : ListOrderField; desc : Bool };
+    public type ListOrderField = { #UpdatedAt; #Keys; #CreatedAt };
+    public type ListPaginate = { start_after : ?Text; limit : ?Nat64 };
+    public type ListParams = {
+        order : ?ListOrder;
+        owner : ?Principal;
+        matcher : ?ListMatcher;
+        paginate : ?ListPaginate;
+    };
+    public type ListResults_1 = {
+        matches_pages : ?Nat64;
+        matches_length : Nat64;
+        items_page : ?Nat64;
+        items : [(Text, Doc)];
+        items_length : Nat64;
     };
     public type DocInput = {
         version : ?Nat64;
@@ -53,17 +80,12 @@ module {
             data : Blob;
             description : ?Text;
             created_at : Nat64;
+            updated_at : ?Nat64;
         };
     };
     public type GetManyDocsResult = { #ok : GetManyDocsResponse; #err : Text };
     public type GetManyDocsResponse = [(Text, ?DocResponse)];
-    public type DocResponse = {
-        version : Nat64;
-        owner : Principal;
-        data : Blob;
-        description : ?Text;
-        created_at : Nat64;
-    };
+    public type DocResponse = Doc;
     public type Order = ?{ field : OrderField; desc : Bool };
     public type Matcher = ?{ key : ?Text; description : ?Text };
     public type Paginate = ?{ start_after : ?Text; limit : ?Nat64 };
@@ -82,13 +104,6 @@ module {
         collection : Text;
         key : Text;
         docInput : DocInput;
-    };
-    public type Doc = {
-        version : ?Nat64;
-        owner : Principal;
-        data : Blob;
-        description : ?Text;
-        created_at : Nat64;
     };
     public type OrderField = { #UpdatedAt; #Keys; #CreatedAt };
     public type ListDocsFilter = ({

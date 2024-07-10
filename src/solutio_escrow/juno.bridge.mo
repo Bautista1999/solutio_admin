@@ -9,11 +9,12 @@ import Iter "mo:base/Iter";
 import List "mo:base/List";
 module {
     let juno = actor ("svftd-daaaa-aaaal-adr3a-cai") : actor {
-        set_doc : (Text, Text, T.DocInput) -> async ();
-        get_doc : (Text, Text) -> async ?T.GetDocResponse;
-        set_many_docs : (T.SetManyDocsInput) -> async ();
-        get_many_docs : (T.GetManyDocsInput) -> async T.GetManyDocsResponse;
-        list_docs : (Text, T.ListDocsFilter) -> async T.ListDocsResponse;
+        set_doc : shared (Text, Text, T.DocInput) -> async T.Doc;
+        // get_doc : (Text, Text) -> async ?T.GetDocResponse;
+        get_doc : shared query (Text, Text) -> async ?T.Doc;
+        set_many_docs : shared (T.SetManyDocsInput) -> async [(Text, T.Doc)];
+        get_many_docs : shared query [(Text, Text)] -> async [(Text, ?T.Doc)];
+        list_docs : shared query (Text, T.ListParams) -> async T.ListResults_1;
         del_doc : (Text, Text, { version : ?Nat64 }) -> async ();
         del_many_docs : [(Text, Text, { version : ?Nat64 })] -> async ();
     };
@@ -28,7 +29,7 @@ module {
     public func setJunoDoc(collection : Text, key : Text, doc : T.DocInput) : async Text {
         // if(msg.caller != Principal.fromText(Self)){}
         try {
-            await juno.set_doc(collection, key, doc);
+            let ret = await juno.set_doc(collection, key, doc);
         } catch (errore) {
             let error = await handleErrors(errore);
             return error;
@@ -76,8 +77,9 @@ module {
     // External functions using it: None currently.
     // Official Documentation: https://forum.solutio.one/-153/setmanyjunodocs-documentation
     public func setManyJunoDocs(docs : T.SetManyDocsInput) : async Text {
+
         try {
-            await juno.set_many_docs(docs);
+            let ret = await juno.set_many_docs(docs);
         } catch (errore) {
             let error = await handleErrors(errore);
             return error;
@@ -136,7 +138,7 @@ module {
                 return "Document not Found";
             };
             case (?doc) {
-                let updated_number = ?doc.version;
+                let updated_number = doc.version;
                 let newDocInput : T.DocInput = {
                     version = updated_number;
                     data = docsInput.data;
@@ -176,16 +178,17 @@ module {
                 Debug.print(debug_show ("Response: ", response));
                 switch (response) {
                     case (#ok(response)) {
-                        let responseIter = Array.vals<(Text, ?T.DocResponse)>(response);
+                        let responseIter = Array.vals<(Text, ?T.Doc)>(response);
                         for (resp in responseIter) {
                             let textPart = resp.0;
-                            let docResponsePart : ?T.DocResponse = resp.1;
+                            let docResponsePart : ?T.Doc = resp.1;
                             switch (docResponsePart) {
                                 case (null) {
                                     // do nothing
                                 };
                                 case (?docResponse) {
-                                    let updatedAt : Nat64 = docResponse.version;
+
+                                    let updatedAt : Nat64 = docResponse.updated_at;
                                     let updatedDocs = Array.map<T.CollectionKeyPair, T.CollectionKeyPair>(
                                         docs,
                                         func(doc) {
@@ -253,7 +256,7 @@ module {
                 return "Document not Found";
             };
             case (?doc) {
-                let updated_number : ?Nat64 = ?doc.version;
+                let updated_number : ?Nat64 = doc.version;
                 try {
                     let result = await juno.del_doc(collection, key, { version = updated_number });
 
