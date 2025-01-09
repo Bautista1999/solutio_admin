@@ -1698,4 +1698,54 @@ actor Escrow {
         return sender_transactions;
     };
 
+    // *******transferTokens********
+    // Brief Description: Transfers ICRC tokens from the caller to a specified target account.
+    // Pre-Conditions:
+    // - Caller must have sufficient funds
+    // - Amount must be greater than 0
+    // - Target account must be valid
+    // Returns:
+    // - Success message or error details
+    public shared (msg) func transferTokens(target: Text, amount: Nat) : async Text {
+        let caller = msg.caller;
+        // if (Principal.isAnonymous(caller)) {
+        //     throw Error.reject("Anonymous users cannot transfer tokens.");
+        // };
+        
+        if (amount == 0) {
+            throw Error.reject("Transfer amount must be greater than 0");
+        };
+
+        let to_account : Ledger.Account = {
+            owner = Principal.fromText(target);
+            subaccount = null;
+        };
+
+        let from_account : Ledger.Account = {
+            owner = caller;
+            subaccount = null;
+        };
+
+        let current = Prim.time();
+        
+        let result = await Ledger.icrc.icrc1_transfer({
+            to = to_account;
+            fee = null;
+            memo = null;
+            from_subaccount = null;
+            created_at_time = ?current;
+            amount = amount;
+        });
+
+        switch (result) {
+            case (#Ok(block_height)) {
+                
+                return "Transfer successful with block height: " # Nat.toText(block_height);
+            };
+            case (#Err(error)) {
+                throw Error.reject("Transfer failed: " # transferErrorMessage(error));
+            };
+        };
+    };
+
 };
