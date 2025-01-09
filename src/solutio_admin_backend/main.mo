@@ -324,7 +324,7 @@ actor Admin {
               if (text == idea_id) {
                 switch (doc.description) {
                   case (null) {
-                    throw Error.reject("Idea should have a description");
+                    idea_owner := Principal.toText(doc.owner);
                   };
                   case (?description) {
                     if (Text.contains(description, #text "delivered") or Text.contains(description, #text "completed")) {
@@ -500,7 +500,7 @@ actor Admin {
     // ******************************
 
     // ******************************
-    //  4) We need to create a document for the `pledges_active` collection with the doc_key.
+    //  4)We need to create a document for the `pledges_active` collection with the doc_key.
     let pledge : T.Pledge = {
       doc_key = doc_key;
       idea_id = idea_id;
